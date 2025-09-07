@@ -4,7 +4,95 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="1ad6ba4f-3ae1-4eb0-86f2-388b98c68590" name="Changes" comment="Inicio do projeto" />
+    <list default="true" id="1ad6ba4f-3ae1-4eb0-86f2-388b98c68590" name="Changes" comment="Inicio do projeto">
+      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/frontend/landry-jewels-crm-main/.gitignore" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/frontend/landry-jewels-crm-main/README.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/frontend/landry-jewels-crm-main/bun.lockb" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/frontend/landry-jewels-crm-main/components.json" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/frontend/landry-jewels-crm-main/eslint.config.js" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/frontend/landry-jewels-crm-main/index.html" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/frontend/landry-jewels-crm-main/package-lock.json" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/frontend/landry-jewels-crm-main/package.json" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/frontend/landry-jewels-crm-main/postcss.config.js" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/frontend/landry-jewels-crm-main/public/favicon.ico" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/frontend/landry-jewels-crm-main/public/placeholder.svg" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/frontend/landry-jewels-crm-main/public/robots.txt" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/frontend/landry-jewels-crm-main/src/App.css" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/frontend/landry-jewels-crm-main/src/App.tsx" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/frontend/landry-jewels-crm-main/src/components/dashboard/Dashboard.tsx" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/frontend/landry-jewels-crm-main/src/components/layout/MainLayout.tsx" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/frontend/landry-jewels-crm-main/src/components/layout/Sidebar.tsx" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/frontend/landry-jewels-crm-main/src/components/ui/accordion.tsx" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/frontend/landry-jewels-crm-main/src/components/ui/alert-dialog.tsx" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/frontend/landry-jewels-crm-main/src/components/ui/alert.tsx" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/frontend/landry-jewels-crm-main/src/components/ui/aspect-ratio.tsx" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/frontend/landry-jewels-crm-main/src/components/ui/avatar.tsx" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/frontend/landry-jewels-crm-main/src/components/ui/badge.tsx" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/frontend/landry-jewels-crm-main/src/components/ui/breadcrumb.tsx" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/frontend/landry-jewels-crm-main/src/components/ui/button.tsx" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/frontend/landry-jewels-crm-main/src/components/ui/calendar.tsx" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/frontend/landry-jewels-crm-main/src/components/ui/card.tsx" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/frontend/landry-jewels-crm-main/src/components/ui/carousel.tsx" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/frontend/landry-jewels-crm-main/src/components/ui/chart.tsx" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/frontend/landry-jewels-crm-main/src/components/ui/checkbox.tsx" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/frontend/landry-jewels-crm-main/src/components/ui/collapsible.tsx" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/frontend/landry-jewels-crm-main/src/components/ui/command.tsx" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/frontend/landry-jewels-crm-main/src/components/ui/context-menu.tsx" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/frontend/landry-jewels-crm-main/src/components/ui/dialog.tsx" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/frontend/landry-jewels-crm-main/src/components/ui/drawer.tsx" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/frontend/landry-jewels-crm-main/src/components/ui/dropdown-menu.tsx" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/frontend/landry-jewels-crm-main/src/components/ui/form.tsx" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/frontend/landry-jewels-crm-main/src/components/ui/hover-card.tsx" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/frontend/landry-jewels-crm-main/src/components/ui/input-otp.tsx" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/frontend/landry-jewels-crm-main/src/components/ui/input.tsx" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/frontend/landry-jewels-crm-main/src/components/ui/label.tsx" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/frontend/landry-jewels-crm-main/src/components/ui/menubar.tsx" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/frontend/landry-jewels-crm-main/src/components/ui/navigation-menu.tsx" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/frontend/landry-jewels-crm-main/src/components/ui/pagination.tsx" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/frontend/landry-jewels-crm-main/src/components/ui/popover.tsx" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/frontend/landry-jewels-crm-main/src/components/ui/progress.tsx" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/frontend/landry-jewels-crm-main/src/components/ui/radio-group.tsx" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/frontend/landry-jewels-crm-main/src/components/ui/resizable.tsx" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/frontend/landry-jewels-crm-main/src/components/ui/scroll-area.tsx" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/frontend/landry-jewels-crm-main/src/components/ui/select.tsx" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/frontend/landry-jewels-crm-main/src/components/ui/separator.tsx" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/frontend/landry-jewels-crm-main/src/components/ui/sheet.tsx" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/frontend/landry-jewels-crm-main/src/components/ui/sidebar.tsx" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/frontend/landry-jewels-crm-main/src/components/ui/skeleton.tsx" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/frontend/landry-jewels-crm-main/src/components/ui/slider.tsx" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/frontend/landry-jewels-crm-main/src/components/ui/sonner.tsx" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/frontend/landry-jewels-crm-main/src/components/ui/switch.tsx" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/frontend/landry-jewels-crm-main/src/components/ui/table.tsx" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/frontend/landry-jewels-crm-main/src/components/ui/tabs.tsx" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/frontend/landry-jewels-crm-main/src/components/ui/textarea.tsx" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/frontend/landry-jewels-crm-main/src/components/ui/toast.tsx" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/frontend/landry-jewels-crm-main/src/components/ui/toaster.tsx" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/frontend/landry-jewels-crm-main/src/components/ui/toggle-group.tsx" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/frontend/landry-jewels-crm-main/src/components/ui/toggle.tsx" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/frontend/landry-jewels-crm-main/src/components/ui/tooltip.tsx" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/frontend/landry-jewels-crm-main/src/components/ui/use-toast.ts" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/frontend/landry-jewels-crm-main/src/components/views/ClientesView.tsx" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/frontend/landry-jewels-crm-main/src/components/views/FuncionariosView.tsx" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/frontend/landry-jewels-crm-main/src/components/views/LogsView.tsx" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/frontend/landry-jewels-crm-main/src/components/views/OportunidadesView.tsx" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/frontend/landry-jewels-crm-main/src/components/views/PedidosView.tsx" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/frontend/landry-jewels-crm-main/src/components/views/ProdutosView.tsx" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/frontend/landry-jewels-crm-main/src/data/mockData.ts" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/frontend/landry-jewels-crm-main/src/hooks/use-mobile.tsx" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/frontend/landry-jewels-crm-main/src/hooks/use-toast.ts" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/frontend/landry-jewels-crm-main/src/index.css" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/frontend/landry-jewels-crm-main/src/lib/utils.ts" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/frontend/landry-jewels-crm-main/src/main.tsx" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/frontend/landry-jewels-crm-main/src/pages/Index.tsx" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/frontend/landry-jewels-crm-main/src/pages/NotFound.tsx" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/frontend/landry-jewels-crm-main/src/vite-env.d.ts" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/frontend/landry-jewels-crm-main/tailwind.config.ts" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/frontend/landry-jewels-crm-main/tsconfig.app.json" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/frontend/landry-jewels-crm-main/tsconfig.json" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/frontend/landry-jewels-crm-main/tsconfig.node.json" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/frontend/landry-jewels-crm-main/vite.config.ts" beforeDir="false" />
+    </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
     <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
@@ -16,7 +104,7 @@
         <entry key="$PROJECT_DIR$/backend/landryJoias" value="main" />
       </map>
     </option>
-    <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$/backend/landryJoias" />
+    <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$" />
   </component>
   <component name="GitHubPullRequestSearchHistory">{
   &quot;lastFilter&quot;: {}
@@ -44,6 +132,7 @@
     "ModuleVcsDetector.initialDetectionPerformed": "true",
     "RunOnceActivity.ShowReadmeOnStart": "true",
     "RunOnceActivity.TerminalTabsStorage.copyFrom.TerminalArrangementManager": "true",
+    "RunOnceActivity.git.unshallow": "true",
     "SHARE_PROJECT_CONFIGURATION_FILES": "true",
     "git-widget-placeholder": "main",
     "ignore.virus.scanning.warn.message": "true",
@@ -60,6 +149,11 @@
     "vue.rearranger.settings.migration": "true"
   }
 }]]></component>
+  <component name="RecentsManager">
+    <key name="MoveFile.RECENT_KEYS">
+      <recent name="C:\Users\pedro\OneDrive\Documentos\Trabalhos FATEC\Inter-CRM\backend\landryJoias\src\main\resources" />
+    </key>
+  </component>
   <component name="RunManager">
     <configuration name="LandryJoiasApplication" type="SpringBootApplicationConfigurationType" factoryName="Spring Boot" nameIsGenerated="true">
       <module name="landryJoias" />
@@ -90,6 +184,7 @@
       <workItem from="1757200779049" duration="44000" />
       <workItem from="1757249743298" duration="191000" />
       <workItem from="1757250360693" duration="169000" />
+      <workItem from="1757250839586" duration="881000" />
     </task>
     <task id="LOCAL-00001" summary="Inicio do projeto">
       <option name="closed" value="true" />
