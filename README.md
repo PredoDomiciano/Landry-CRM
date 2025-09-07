@@ -2,54 +2,87 @@
 
 ## 🌟 Visão Geral do Projeto
 
-Este projeto é um sistema de Gerenciamento de Relacionamento com o Cliente (**CRM**) focado na gestão de clientes para uma fábrica de joias. O objetivo é fornecer uma solução robusta e segura para gerir informações de clientes, pedidos e interações, otimizando o fluxo de trabalho da empresa.
+Este projeto é um sistema de Gerenciamento de Relacionamento com o Cliente (CRM) para uma fábrica de joias. O objetivo é fornecer uma solução completa, segura e eficiente para gerir dados de clientes, pedidos e interações, otimizando o fluxo de trabalho da empresa.
+
+## 📁 Estrutura do Repositório
+
+O projeto é uma **monorepo**, ou seja, um único repositório que contém o código-fonte de várias partes da aplicação, organizadas da seguinte forma:
+
+-   **`backend/`**: Contém o projeto **Spring Boot** responsável pela lógica de negócio e pelas APIs REST.
+-   **`banco-de-dados/`**: Armazena os scripts e o modelo de dados do banco de dados **SQL Server**. O arquivo `Landry Joias Conceitual.brM3` indica o uso de uma ferramenta de modelagem (`brModel`).
+-   **`frontend/`**: Inclui o projeto de frontend, construído com tecnologias modernas.
 
 ---
 
 ## 🛠️ Tecnologias Utilizadas
 
-Este projeto foi construído com as seguintes tecnologias no **backend**:
+### Backend
 
-- **Linguagem:** Java 17
-- **Framework:** Spring Boot 3
-- **Banco de Dados:** SQL Server
-- **Dependências Chave:**
-    - `spring-boot-starter-data-jpa`: Para persistência de dados e interação com o banco usando **JPA** e **Hibernate**.
-    - `spring-boot-starter-security`: Para garantir a segurança das APIs, autenticação e autorização.
-    - `spring-boot-starter-web`: Para construir a aplicação **web** e as **APIs REST**.
-    - `mssql-jdbc`: O driver JDBC para conectar a aplicação ao **SQL Server**.
-    - `lombok`: Para reduzir o código repetitivo (`getters`, `setters`, `construtores`, etc.).
+Desenvolvido em **Java** com o framework **Spring Boot**, o backend está configurado com as seguintes tecnologias principais:
+
+-   **Linguagem:** Java 17
+-   **Framework:** Spring Boot 3
+-   **Ferramenta de Construção:** Maven
+-   **Dependências:** Spring Data JPA, Spring Security, Spring Web, Lombok e o driver JDBC para SQL Server.
+
+### Banco de Dados
+
+O banco de dados é gerido de forma independente, utilizando **SQL Server**.
 
 ### Frontend
 
-O frontend inicial do projeto é construído com as seguintes tecnologias, mas a arquitetura foi projetada para ser flexível e permitir a substituição do frontend no futuro:
+O frontend é uma **Single-Page Application (SPA)**, construída com as seguintes tecnologias para uma experiência de utilizador fluida e moderna:
 
-- **HTML**
-- **CSS**
-- **JavaScript**
+-   **Framework:** React com TypeScript
+-   **Ferramenta de Construção:** Vite
+-   **Estilização:** Tailwind CSS (configurado com `postcss.config.js`)
+-   **Componentes de UI:** Utiliza uma biblioteca de componentes (`shadcn/ui` ou similar, conforme sugerido por `components.json`).
+-   **State Management:** Estrutura pronta para usar `hooks` e gerenciar o estado da aplicação.
+
+A estrutura do frontend inclui pastas como `components`, `pages`, `lib` e `hooks`, o que demonstra uma arquitetura organizada e escalável.
 
 ---
 
 ## 🚀 Como Executar o Projeto
 
-Para configurar e rodar o projeto localmente, siga os passos abaixo:
+Para configurar e rodar o projeto localmente, siga estes passos para o backend e o frontend separadamente.
 
-### Pré-requisitos
+### Backend
 
-Certifique-se de que tens as seguintes ferramentas instaladas na tua máquina:
+1.  Navegue para a pasta `backend/landryJoias`.
+2.  Configure o banco de dados no arquivo `src/main/resources/application.properties` com as suas credenciais.
+3.  Execute a aplicação usando o Maven.
 
-- **JDK 17** ou superior
-- **Maven**
-- **SQL Server**
-- Uma IDE como **IntelliJ IDEA** ou **VS Code**
+    ```bash
+    cd backend/landryJoias
+    mvn spring-boot:run
+    ```
 
-### Configuração do Banco de Dados
+### Frontend
 
-1.  Cria uma base de dados no teu **SQL Server**.
-2.  Atualiza o arquivo `src/main/resources/application.properties` (ou `application.yml`) com as tuas credenciais de banco de dados, URL e nome da base de dados.
+1.  Navegue para a pasta `frontend/LandryJoias`.
+2.  Instale as dependências do projeto. Este projeto usa `bun`, mas também pode ser executado com `npm` ou `yarn`.
 
-   ```properties
-   spring.datasource.url=jdbc:sqlserver://localhost:1433;databaseName=NOME_DO_TEU_BD
-   spring.datasource.username=TEU_USUARIO
-   spring.datasource.password=TUA_SENHA
-   spring.jpa.hibernate.ddl-auto=update
+    ```bash
+    cd frontend/LandryJoias
+    bun install  # ou npm install / yarn install
+    ```
+3.  Inicie o servidor de desenvolvimento.
+
+    ```bash
+    bun dev  # ou npm run dev / yarn dev
+    ```
+
+O backend estará acessível em `http://localhost:8080` e o frontend em `http://localhost:5173` (porta padrão do Vite).
+
+---
+
+## 🤝 Contribuições
+
+Contribuições são bem-vindas! Sinta-se à vontade para abrir `issues` ou `pull requests` com propostas de melhorias, correções de bugs ou novas funcionalidades.
+
+---
+
+## 📄 Licença
+
+Este projeto está licenciado sob a Licença **[Nome da Licença, ex: MIT]**.
