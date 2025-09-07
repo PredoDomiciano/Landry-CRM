@@ -9,7 +9,7 @@ Este projeto é um sistema de Gerenciamento de Relacionamento com o Cliente (CRM
 O projeto é uma **monorepo**, ou seja, um único repositório que contém o código-fonte de várias partes da aplicação, organizadas da seguinte forma:
 
 -   **`backend/`**: Contém o projeto **Spring Boot** responsável pela lógica de negócio e pelas APIs REST.
--   **`banco-de-dados/`**: Armazena os scripts e o modelo de dados do banco de dados **SQL Server**. O arquivo `Landry Joias Conceitual.brM3` indica o uso de uma ferramenta de modelagem (`brModel`).
+-   **`banco-de-dados/`**: Armazena os scripts e o modelo de dados do banco de dados **SQL Server**.
 -   **`frontend/`**: Inclui o projeto de frontend, construído com tecnologias modernas.
 
 ---
@@ -81,8 +81,3 @@ O backend estará acessível em `http://localhost:8080` e o frontend em `http://
 
 Contribuições são bem-vindas! Sinta-se à vontade para abrir `issues` ou `pull requests` com propostas de melhorias, correções de bugs ou novas funcionalidades.
 
----
-
-## 📄 Licença
-
-Este projeto está licenciado sob a Licença **[Nome da Licença, ex: MIT]**.
