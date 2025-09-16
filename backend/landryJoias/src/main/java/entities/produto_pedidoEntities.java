@@ -3,7 +3,7 @@ package entities;
 import lombok.Data;
 
 @Data
-public class ProdutoPedido {
+public class produto_pedidoEntities {
     private int idProduto;
     private int idPedido;
     private int quantidade;

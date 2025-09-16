@@ -3,7 +3,7 @@ package entities;
 import lombok.Data;
 
 @Data
-public class Contatos {
+public class contatosEntities {
     private int idContato;
     private String endereco;
     private String numero;

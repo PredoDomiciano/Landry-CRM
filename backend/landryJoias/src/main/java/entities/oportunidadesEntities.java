@@ -3,7 +3,7 @@ package entities;
 import lombok.Data;
 
 @Data
-public class Oportunidades {
+public class oportunidadesEntities {
     private int idOportunidade;
     private String nomeOportunidade;
     private double valorEstimado;
