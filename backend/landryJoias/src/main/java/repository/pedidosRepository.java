@@ -1,4 +1,6 @@
 package repository;
 
-public class pedidosRepository {
+import org.springframework.data.jpa.repository.JpaRepository;
+
+public interface pedidosRepository extends JpaRepository<pedidosRepository, Long> {
 }

@@ -1,4 +1,6 @@
 package repository;
 
-public class oportunidadesRepository {
+import org.springframework.data.jpa.repository.JpaRepository;
+
+public interface oportunidadesRepository extends JpaRepository<oportunidadesRepository, Long> {
 }

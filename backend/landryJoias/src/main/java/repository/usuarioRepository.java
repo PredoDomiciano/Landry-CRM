@@ -1,4 +1,6 @@
 package repository;
 
-public class usuarioRepository {
+import org.springframework.data.jpa.repository.JpaRepository;
+
+public interface usuarioRepository extends JpaRepository<contatosRepository, Long> {
 }
