@@ -1,6 +1,9 @@
 package repository;
 
+import entities.pedidosEntities;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.stereotype.Repository;
 
-public interface pedidosRepository extends JpaRepository<pedidosRepository, Long> {
+@Repository
+public interface pedidosRepository extends JpaRepository<pedidosEntities, Long> {
 }

@@ -1,6 +1,9 @@
 package repository;
 
+import entities.funcionarioEntities;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.stereotype.Repository;
 
-public interface funcionarioRepository extends JpaRepository<funcionarioRepository, Long> {
+@Repository
+public interface funcionarioRepository extends JpaRepository<funcionarioEntities, Long> {
 }
