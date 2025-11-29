@@ -1,0 +1,151 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Landry Joias CRM Design System - Elegant jewelry brand aesthetic */
+
+@layer base {
+  :root {
+    /* Background & Surfaces */
+    --background: 0 0% 99%;
+    --foreground: 225 15% 15%;
+    --surface: 0 0% 100%;
+    --surface-variant: 220 13% 97%;
+
+    /* Brand Colors - Landry Joias Theme */
+    --primary: 45 100% 65%; /* Landry gold from logo */
+    --primary-foreground: 30 15% 15%; /* Dark brown/black */
+    --primary-glow: 45 85% 70%;
+    
+    --accent-gold: 45 100% 65%; /* Main Landry gold */
+    --accent-gold-foreground: 30 15% 15%;
+    --accent-rose: 350 85% 65%; /* Rose gold accent */
+    --accent-silver: 220 8% 70%; /* Refined silver */
+
+    /* Semantic Colors */
+    --secondary: 220 13% 95%;
+    --secondary-foreground: 225 15% 25%;
+    
+    --muted: 220 13% 94%;
+    --muted-foreground: 225 10% 45%;
+    
+    --success: 145 65% 42%;
+    --success-foreground: 0 0% 100%;
+    
+    --warning: 35 85% 55%;
+    --warning-foreground: 225 15% 15%;
+    
+    --destructive: 0 75% 55%;
+    --destructive-foreground: 0 0% 100%;
+
+    /* Interactive Elements */
+    --card: 0 0% 100%;
+    --card-foreground: 225 15% 15%;
+    --card-border: 220 13% 90%;
+    
+    --popover: 0 0% 100%;
+    --popover-foreground: 225 15% 15%;
+    
+    --border: 220 13% 88%;
+    --input: 220 13% 94%;
+    --ring: 45 100% 65%;
+
+    /* Design tokens */
+    --radius: 0.75rem;
+    --radius-lg: 1rem;
+    --radius-sm: 0.5rem;
+
+    /* Gradients */
+    --gradient-primary: linear-gradient(135deg, hsl(var(--primary)), hsl(var(--primary-glow)));
+    --gradient-gold: linear-gradient(135deg, hsl(var(--accent-gold)), hsl(45 85% 55%));
+    --gradient-surface: linear-gradient(180deg, hsl(var(--surface)), hsl(var(--surface-variant)));
+
+    /* Shadows */
+    --shadow-subtle: 0 1px 2px 0 hsl(30 15% 15% / 0.05);
+    --shadow-medium: 0 4px 6px -1px hsl(30 15% 15% / 0.1);
+    --shadow-large: 0 20px 25px -5px hsl(30 15% 15% / 0.1), 0 10px 10px -5px hsl(30 15% 15% / 0.04);
+    --shadow-glow: 0 0 0 1px hsl(var(--accent-gold) / 0.4);
+
+    /* Animation */
+    --transition-smooth: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    --transition-fast: all 0.15s ease-out;
+
+    /* Sidebar */
+    --sidebar-background: 30 25% 15%;
+    --sidebar-foreground: 45 50% 85%;
+    --sidebar-primary: 45 100% 65%;
+    --sidebar-primary-foreground: 30 15% 15%;
+    --sidebar-accent: 30 20% 20%;
+    --sidebar-accent-foreground: 45 50% 85%;
+    --sidebar-border: 30 20% 25%;
+    --sidebar-ring: 45 100% 65%;
+  }
+
+  .dark {
+    /* Dark mode - elegant jewelry theme */
+    --background: 225 15% 8%;
+    --foreground: 0 0% 95%;
+    
+    --primary: 45 95% 58%;
+    --primary-foreground: 225 15% 15%;
+    
+    --card: 225 15% 12%;
+    --card-foreground: 0 0% 95%;
+    
+    --accent-gold: 45 95% 58%;
+    --accent-gold-foreground: 225 15% 15%;
+
+    --sidebar-background: 225 20% 6%;
+    --sidebar-foreground: 0 0% 90%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground font-sans antialiased;
+  }
+
+  /* Custom scrollbar for elegant look */
+  ::-webkit-scrollbar {
+    @apply w-2 h-2;
+  }
+  
+  ::-webkit-scrollbar-track {
+    @apply bg-muted;
+  }
+  
+  ::-webkit-scrollbar-thumb {
+    @apply bg-border rounded-full;
+  }
+  
+  ::-webkit-scrollbar-thumb:hover {
+    @apply bg-muted-foreground;
+  }
+}
+
+@layer components {
+  /* Custom components for Landry Joias CRM */
+  .jewelry-gradient {
+    background: var(--gradient-gold);
+  }
+  
+  .surface-gradient {
+    background: var(--gradient-surface);
+  }
+  
+  .shadow-elegant {
+    box-shadow: var(--shadow-large);
+  }
+  
+  .glow-gold {
+    box-shadow: var(--shadow-glow);
+  }
+  
+  .transition-smooth {
+    transition: var(--transition-smooth);
+  }
+}

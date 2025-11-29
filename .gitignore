@@ -1,0 +1,21 @@
+# --- Java / Maven ---
+target/
+*.class
+*.jar
+*.war
+.mvn/
+*.log
+
+# --- Node / Front-end ---
+node_modules/
+dist/
+build/
+.npm
+.env
+.env.local
+
+# --- VS Code / IDEs ---
+.vscode/
+.idea/
+*.iml
+.DS_Store
