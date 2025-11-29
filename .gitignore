@@ -19,3 +19,6 @@ build/
 .idea/
 *.iml
 .DS_Store
+
+application.properties
+**/application.properties
