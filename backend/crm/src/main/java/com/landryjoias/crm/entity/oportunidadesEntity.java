@@ -16,8 +16,8 @@ import java.time.LocalDate;
 public class oportunidadesEntity {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private int idOportunidade;
-    @Column(nullable = false,name = "nome da oportunidade")
+    private Integer idOportunidade;
+    @Column(nullable = false, name = "nome da oportunidade")
     private String nomeOportunidade;
     @Column(name = "valor estimado")
     private Integer valorEstimado;
@@ -26,4 +26,12 @@ public class oportunidadesEntity {
     private com.landryjoias.crm.entity.EstagioFunil estagioFunil;
     @Column(name = "data de fechamento estimada")
     private LocalDate dataDeFechamentoEstimada;
+
+    @ManyToOne
+    @JoinColumn(name = "id_cliente")
+    private clienteEntity cliente;
+
+    // Uma oportunidade vira UM pedido
+    @OneToOne(mappedBy = "oportunidade")
+    private pedidosEntity pedido;
 }

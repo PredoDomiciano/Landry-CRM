@@ -1,5 +1,7 @@
 package com.landryjoias.crm.entity;
 
+import java.util.List;
+
 import jakarta.annotation.Nonnull;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
@@ -16,7 +18,7 @@ import lombok.Setter;
 public class clienteEntity {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private int idCliente;
+    private Integer idCliente;
     @Column(unique = true, nullable = false)
     private String CNPJ;
     @Column(name = "nome_comercio", nullable = false, unique = true)
@@ -36,4 +38,12 @@ public class clienteEntity {
     private String numero;
     @Column(unique = true, nullable = false)
     private String email;
+
+    @OneToOne(cascade = CascadeType.ALL)
+    @JoinColumn(name = "id_usuario")
+    private usuarioEntity usuario;
+
+    // Um cliente tem VÁRIAS oportunidades
+    @OneToMany(mappedBy = "cliente")
+    private List<oportunidadesEntity> oportunidades;
 }

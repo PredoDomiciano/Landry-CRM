@@ -6,6 +6,8 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 import java.time.LocalDate;
+import java.util.List;
+
 import jakarta.annotation.Nonnull;
 
 @Table(name = "Pedidos")
@@ -24,4 +26,12 @@ public class pedidosEntity {
     private Integer valorTotal;
     @Enumerated(EnumType.STRING)
     private com.landryjoias.crm.entity.StatusPedido status;
+
+    @OneToOne
+    @JoinColumn(name = "id_oportunidade")
+    private oportunidadesEntity oportunidade;
+
+    // Relacionamento complexo com Produtos (veja abaixo)
+    @OneToMany(mappedBy = "pedido")
+    private List<produto_pedidoEntity> itens;
 }

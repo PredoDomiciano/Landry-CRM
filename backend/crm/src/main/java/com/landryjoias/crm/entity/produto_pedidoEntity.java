@@ -7,7 +7,6 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 import jakarta.annotation.Nonnull;
 
-
 @Table(name = "Produtos_Pedidos")
 @Entity
 @Getter
@@ -36,4 +35,5 @@ public class produto_pedidoEntity {
     private String tamanho;
     @Nonnull
     private float valor;
+
 }

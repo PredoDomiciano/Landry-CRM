@@ -17,7 +17,7 @@ import jakarta.annotation.Nonnull;
 public class funcionarioEntity {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private int idFuncionario;
+    private Integer idFuncionario;
     @Nonnull
     private String nome;
     @Column(nullable = false, unique = true)

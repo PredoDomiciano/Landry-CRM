@@ -19,7 +19,7 @@ import java.time.LocalDateTime;
 public class logEntity {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private int idLog;
+    private Integer idLog;
     @Nonnull
     private String titulo;
     @Nonnull
@@ -32,5 +32,9 @@ public class logEntity {
     private String descricao;
     @Nonnull
     private LocalDateTime data;
+
+    @ManyToOne
+    @JoinColumn(name = "id_usuario")
+    private usuarioEntity usuario;
 
 }

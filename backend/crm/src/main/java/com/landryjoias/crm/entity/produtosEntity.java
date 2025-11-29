@@ -10,7 +10,7 @@ import jakarta.annotation.Nonnull;
 public class produtosEntity {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private int idProduto;
+    private Integer idProduto;
     @Nonnull
     private String nome;
     @Nonnull
