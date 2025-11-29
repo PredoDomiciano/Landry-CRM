@@ -4,9 +4,10 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { mockPedidos, mockClientes, mockProdutos, Pedido } from '@/data/mockData';
-import { Search, Plus, Package, Calendar, DollarSign, Eye } from 'lucide-react';
+import { Pedido } from '@/data/mockData';
+import { Search, Plus, Package, Calendar, DollarSign, Eye, ChevronRight } from 'lucide-react';
 import { PedidoForm } from '@/components/forms/PedidoForm';
+import { useApp } from '@/contexts/AppContext';
 
 const statusColors = {
   'pendente': '#f59e0b',
@@ -18,9 +19,9 @@ const statusColors = {
 };
 
 export const PedidosView = () => {
+  const { pedidos, clientes, produtos, addPedido, updatePedidoStatus } = useApp();
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
-  const [pedidos, setPedidos] = useState(mockPedidos);
   const [showForm, setShowForm] = useState(false);
 
   const filteredPedidos = pedidos.filter(pedido => {
@@ -30,12 +31,12 @@ export const PedidosView = () => {
   });
 
   const getClienteName = (clienteId: number) => {
-    const cliente = mockClientes.find(c => c.idCliente === clienteId);
+    const cliente = clientes.find(c => c.idCliente === clienteId);
     return cliente?.nome_do_comercio || 'Cliente não encontrado';
   };
 
   const getProdutoNome = (produtoId: number) => {
-    const produto = mockProdutos.find(p => p.idProduto === produtoId);
+    const produto = produtos.find(p => p.idProduto === produtoId);
     return produto?.nome || 'Produto não encontrado';
   };
 
@@ -47,11 +48,16 @@ export const PedidosView = () => {
   const totalValue = pedidos.reduce((sum, pedido) => sum + pedido.valorTotal, 0);
 
   const handleAddPedido = (novoPedido: Omit<Pedido, 'idPedidos'>) => {
-    const pedido: Pedido = {
-      ...novoPedido,
-      idPedidos: Math.max(...pedidos.map(p => p.idPedidos)) + 1
-    };
-    setPedidos([...pedidos, pedido]);
+    addPedido(novoPedido);
+    setShowForm(false);
+  };
+
+  const handleAvancarStatus = (id: number, statusAtual: Pedido['status']) => {
+    const statusOrder: Pedido['status'][] = ['pendente', 'confirmado', 'produção', 'enviado', 'entregue'];
+    const currentIndex = statusOrder.indexOf(statusAtual);
+    if (currentIndex < statusOrder.length - 1) {
+      updatePedidoStatus(id, statusOrder[currentIndex + 1]);
+    }
   };
 
   return (
@@ -127,7 +133,7 @@ export const PedidosView = () => {
                 <Package className="w-4 h-4 text-primary" />
               </div>
               <div>
-                <p className="text-2xl font-bold">{statusCounts['confirmado'] + statusCounts['produção'] || 0}</p>
+                <p className="text-2xl font-bold">{(statusCounts['confirmado'] || 0) + (statusCounts['produção'] || 0)}</p>
                 <p className="text-xs text-muted-foreground">Em Andamento</p>
               </div>
             </div>
@@ -266,9 +272,17 @@ export const PedidosView = () => {
                         <Eye className="w-4 h-4 mr-2" />
                         Ver Detalhes
                       </Button>
-                      <Button variant="outline" size="sm">
-                        Atualizar Status
-                      </Button>
+                      {pedido.status !== 'entregue' && pedido.status !== 'cancelado' && (
+                        <Button 
+                          variant="outline" 
+                          size="sm"
+                          className="bg-accent-gold/10 border-accent-gold/30 text-accent-gold hover:bg-accent-gold/20"
+                          onClick={() => handleAvancarStatus(pedido.idPedidos, pedido.status)}
+                        >
+                          <ChevronRight className="w-4 h-4" />
+                          Avançar
+                        </Button>
+                      )}
                     </div>
                   </div>
                 </div>

@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
+import { useApp } from '@/contexts/AppContext';
 import { 
   Home, 
   Users, 
@@ -12,7 +13,8 @@ import {
   Menu,
   X,
   Gem,
-  HelpCircle
+  HelpCircle,
+  LogOut
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -33,6 +35,7 @@ const navigation = [
 
 export const Sidebar = ({ activeTab, onTabChange }: SidebarProps) => {
   const [isCollapsed, setIsCollapsed] = useState(false);
+  const { logout, currentUser } = useApp();
 
   return (
     <div className={cn(
@@ -63,6 +66,14 @@ export const Sidebar = ({ activeTab, onTabChange }: SidebarProps) => {
           </Button>
         </div>
       </div>
+
+      {/* User info */}
+      {!isCollapsed && currentUser && (
+        <div className="px-4 py-3 border-b border-sidebar-border">
+          <p className="text-xs text-sidebar-foreground/70">Logado como</p>
+          <p className="text-sm font-medium text-sidebar-foreground truncate">{currentUser.email}</p>
+        </div>
+      )}
 
       {/* Navigation */}
       <nav className="flex-1 p-2">
@@ -95,7 +106,19 @@ export const Sidebar = ({ activeTab, onTabChange }: SidebarProps) => {
       </nav>
 
       {/* Footer */}
-      <div className="p-4 border-t border-sidebar-border">
+      <div className="p-4 border-t border-sidebar-border space-y-2">
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={logout}
+          className={cn(
+            "w-full justify-start gap-3 h-10 text-destructive hover:bg-destructive/10 hover:text-destructive",
+            isCollapsed && "justify-center px-2"
+          )}
+        >
+          <LogOut className={cn("w-4 h-4", isCollapsed && "w-5 h-5")} />
+          {!isCollapsed && <span className="font-medium">Sair</span>}
+        </Button>
         {!isCollapsed && (
           <div className="text-xs text-sidebar-foreground/60 text-center">
             <p>CRM Landry Joias</p>

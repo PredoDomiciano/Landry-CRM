@@ -4,9 +4,10 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { mockOportunidades, mockClientes, Oportunidade } from '@/data/mockData';
-import { Search, Plus, Calendar, DollarSign, Target, TrendingUp } from 'lucide-react';
+import { Oportunidade } from '@/data/mockData';
+import { Search, Plus, Calendar, DollarSign, Target, TrendingUp, ChevronRight } from 'lucide-react';
 import { OportunidadeForm } from '@/components/forms/OportunidadeForm';
+import { useApp } from '@/contexts/AppContext';
 
 const statusColors = {
   'prospecção': '#94a3b8',
@@ -18,9 +19,9 @@ const statusColors = {
 };
 
 export const OportunidadesView = () => {
+  const { oportunidades, clientes, addOportunidade, updateOportunidadeStatus } = useApp();
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
-  const [oportunidades, setOportunidades] = useState(mockOportunidades);
   const [showForm, setShowForm] = useState(false);
 
   const filteredOportunidades = oportunidades.filter(oportunidade => {
@@ -30,15 +31,20 @@ export const OportunidadesView = () => {
   });
 
   const handleAddOportunidade = (novaOportunidade: Omit<Oportunidade, 'idOportunidade'>) => {
-    const oportunidade: Oportunidade = {
-      ...novaOportunidade,
-      idOportunidade: Math.max(...oportunidades.map(o => o.idOportunidade)) + 1
-    };
-    setOportunidades([...oportunidades, oportunidade]);
+    addOportunidade(novaOportunidade);
+    setShowForm(false);
+  };
+
+  const handleAvancarStatus = (id: number, statusAtual: Oportunidade['status']) => {
+    const statusOrder: Oportunidade['status'][] = ['prospecção', 'qualificação', 'proposta', 'negociação', 'fechada'];
+    const currentIndex = statusOrder.indexOf(statusAtual);
+    if (currentIndex < statusOrder.length - 1) {
+      updateOportunidadeStatus(id, statusOrder[currentIndex + 1]);
+    }
   };
 
   const getClienteName = (clienteId: number) => {
-    const cliente = mockClientes.find(c => c.idCliente === clienteId);
+    const cliente = clientes.find(c => c.idCliente === clienteId);
     return cliente?.nome_do_comercio || 'Cliente não encontrado';
   };
 
@@ -108,7 +114,7 @@ export const OportunidadesView = () => {
                 <Target className="w-4 h-4 text-accent-gold" />
               </div>
               <div>
-                <p className="text-2xl font-bold">{mockOportunidades.length}</p>
+                <p className="text-2xl font-bold">{oportunidades.length}</p>
                 <p className="text-xs text-muted-foreground">Total</p>
               </div>
             </div>
@@ -122,7 +128,7 @@ export const OportunidadesView = () => {
                 <TrendingUp className="w-4 h-4 text-primary" />
               </div>
               <div>
-                <p className="text-2xl font-bold">{statusCounts['qualificação'] + statusCounts['proposta'] + statusCounts['negociação'] || 0}</p>
+                <p className="text-2xl font-bold">{(statusCounts['qualificação'] || 0) + (statusCounts['proposta'] || 0) + (statusCounts['negociação'] || 0)}</p>
                 <p className="text-xs text-muted-foreground">Ativas</p>
               </div>
             </div>
@@ -250,13 +256,17 @@ export const OportunidadesView = () => {
                 <Button variant="outline" size="sm" className="flex-1">
                   Ver Detalhes
                 </Button>
-                <Button 
-                  variant="outline" 
-                  size="sm"
-                  className="bg-accent-gold/10 border-accent-gold/30 text-accent-gold hover:bg-accent-gold/20"
-                >
-                  Editar
-                </Button>
+                {oportunidade.status !== 'fechada' && oportunidade.status !== 'perdida' && (
+                  <Button 
+                    variant="outline" 
+                    size="sm"
+                    className="bg-accent-gold/10 border-accent-gold/30 text-accent-gold hover:bg-accent-gold/20"
+                    onClick={() => handleAvancarStatus(oportunidade.idOportunidade, oportunidade.status)}
+                  >
+                    <ChevronRight className="w-4 h-4" />
+                    Avançar
+                  </Button>
+                )}
               </div>
             </CardContent>
           </Card>

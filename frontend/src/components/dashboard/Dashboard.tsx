@@ -1,13 +1,7 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { 
-  mockOportunidades, 
-  mockPedidos, 
-  mockClientes, 
-  getOportunidadesByStatus,
-  getTotalValueByStatus,
-  getMonthlyRevenue 
-} from '@/data/mockData';
+import { useApp } from '@/contexts/AppContext';
+import { getMonthlyRevenue } from '@/data/mockData';
 import { 
   TrendingUp, 
   Users, 
@@ -30,14 +24,19 @@ const statusColors = {
 };
 
 export const Dashboard = () => {
-  const totalOportunidades = mockOportunidades.length;
-  const totalClientes = mockClientes.length;
-  const totalPedidos = mockPedidos.length;
-  const valorTotalOportunidades = mockOportunidades.reduce((sum, op) => sum + op.valor_estimado, 0);
-  const valorTotalPedidos = mockPedidos.reduce((sum, pedido) => sum + pedido.valorTotal, 0);
+  const { clientes, oportunidades, pedidos } = useApp();
   
-  const oportunidadesPorStatus = getOportunidadesByStatus();
-  const valorPorStatus = getTotalValueByStatus();
+  const totalOportunidades = oportunidades.length;
+  const totalClientes = clientes.length;
+  const totalPedidos = pedidos.length;
+  const valorTotalOportunidades = oportunidades.reduce((sum, op) => sum + op.valor_estimado, 0);
+  const valorTotalPedidos = pedidos.reduce((sum, pedido) => sum + pedido.valorTotal, 0);
+  
+  const oportunidadesPorStatus = oportunidades.reduce((acc, op) => {
+    acc[op.status] = (acc[op.status] || 0) + 1;
+    return acc;
+  }, {} as Record<string, number>);
+  
   const revenueData = getMonthlyRevenue();
 
   const pieData = Object.entries(oportunidadesPorStatus).map(([status, count]) => ({
@@ -238,7 +237,7 @@ export const Dashboard = () => {
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              {mockOportunidades
+              {oportunidades
                 .sort((a, b) => b.valor_estimado - a.valor_estimado)
                 .slice(0, 4)
                 .map((oportunidade) => (
@@ -278,7 +277,7 @@ export const Dashboard = () => {
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              {mockPedidos.map((pedido) => (
+              {pedidos.map((pedido) => (
                 <div key={pedido.idPedidos} className="flex items-center justify-between p-3 rounded-lg bg-surface-variant">
                   <div>
                     <p className="font-medium text-sm">{pedido.numero}</p>

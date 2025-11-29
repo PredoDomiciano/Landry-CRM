@@ -4,13 +4,14 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { mockFuncionarios, Funcionario } from '@/data/mockData';
+import { Funcionario } from '@/data/mockData';
 import { Search, Plus, Mail, User, Users, Award } from 'lucide-react';
 import { FuncionarioForm } from '@/components/forms/FuncionarioForm';
+import { useApp } from '@/contexts/AppContext';
 
 export const FuncionariosView = () => {
+  const { funcionarios, addFuncionario } = useApp();
   const [searchTerm, setSearchTerm] = useState('');
-  const [funcionarios, setFuncionarios] = useState(mockFuncionarios);
   const [showForm, setShowForm] = useState(false);
 
   const filteredFuncionarios = funcionarios.filter(funcionario =>
@@ -20,11 +21,8 @@ export const FuncionariosView = () => {
   );
 
   const handleAddFuncionario = (novoFuncionario: Omit<Funcionario, 'idFuncionario'>) => {
-    const funcionario: Funcionario = {
-      ...novoFuncionario,
-      idFuncionario: Math.max(...funcionarios.map(f => f.idFuncionario)) + 1
-    };
-    setFuncionarios([...funcionarios, funcionario]);
+    addFuncionario(novoFuncionario);
+    setShowForm(false);
   };
 
   const getInitials = (nome: string) => {

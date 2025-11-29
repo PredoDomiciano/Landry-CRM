@@ -4,14 +4,15 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { mockProdutos, Produto } from '@/data/mockData';
+import { Produto } from '@/data/mockData';
 import { Search, Plus, Package, DollarSign, Star, AlertTriangle } from 'lucide-react';
 import { ProdutoForm } from '@/components/forms/ProdutoForm';
+import { useApp } from '@/contexts/AppContext';
 
 export const ProdutosView = () => {
+  const { produtos, addProduto } = useApp();
   const [searchTerm, setSearchTerm] = useState('');
   const [tipoFilter, setTipoFilter] = useState('all');
-  const [produtos, setProdutos] = useState(mockProdutos);
   const [showForm, setShowForm] = useState(false);
 
   const filteredProdutos = produtos.filter(produto => {
@@ -22,11 +23,8 @@ export const ProdutosView = () => {
   });
 
   const handleAddProduto = (novoProduto: Omit<Produto, 'idProduto'>) => {
-    const produto: Produto = {
-      ...novoProduto,
-      idProduto: Math.max(...produtos.map(p => p.idProduto)) + 1
-    };
-    setProdutos([...produtos, produto]);
+    addProduto(novoProduto);
+    setShowForm(false);
   };
 
   const getStockStatus = (estoque: number) => {

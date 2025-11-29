@@ -3,9 +3,12 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { mockLogs, mockFuncionarios } from '@/data/mockData';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { useApp } from '@/contexts/AppContext';
 import { Search, Plus, Clock, User, Activity, Phone, Mail, Calendar } from 'lucide-react';
 
 const activityIcons = {
@@ -24,11 +27,20 @@ const statusColors = {
 };
 
 export const LogsView = () => {
+  const { logs, addLog, funcionarios } = useApp();
   const [searchTerm, setSearchTerm] = useState('');
   const [tipoFilter, setTipoFilter] = useState('all');
   const [statusFilter, setStatusFilter] = useState('all');
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  
+  const [newLog, setNewLog] = useState({
+    tipo_de_atividade: '',
+    assunto: '',
+    descricao: '',
+    status: ''
+  });
 
-  const filteredLogs = mockLogs.filter(log => {
+  const filteredLogs = logs.filter(log => {
     const matchesSearch = log.assunto.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          log.descricao.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesType = tipoFilter === 'all' || log.tipo_de_atividade === tipoFilter;
@@ -37,8 +49,8 @@ export const LogsView = () => {
   });
 
   const getFuncionarioNome = (usuarioId: number) => {
-    const funcionario = mockFuncionarios.find(f => f.idFuncionario === usuarioId);
-    return funcionario?.nome || 'Usuário não encontrado';
+    const funcionario = funcionarios.find(f => f.idFuncionario === usuarioId);
+    return funcionario?.nome || 'Sistema';
   };
 
   const getInitials = (nome: string) => {
@@ -53,20 +65,27 @@ export const LogsView = () => {
     };
   };
 
-  const tipoStats = mockLogs.reduce((acc, log) => {
+  const tipoStats = logs.reduce((acc, log) => {
     acc[log.tipo_de_atividade] = (acc[log.tipo_de_atividade] || 0) + 1;
     return acc;
   }, {} as Record<string, number>);
 
-  const statusStats = mockLogs.reduce((acc, log) => {
+  const statusStats = logs.reduce((acc, log) => {
     acc[log.status] = (acc[log.status] || 0) + 1;
     return acc;
   }, {} as Record<string, number>);
 
-  // Sort logs by date (most recent first)
   const sortedLogs = [...filteredLogs].sort((a, b) => 
     new Date(b.data).getTime() - new Date(a.data).getTime()
   );
+
+  const handleAddLog = () => {
+    if (newLog.tipo_de_atividade && newLog.assunto && newLog.descricao && newLog.status) {
+      addLog(newLog);
+      setNewLog({ tipo_de_atividade: '', assunto: '', descricao: '', status: '' });
+      setIsDialogOpen(false);
+    }
+  };
 
   return (
     <div className="p-6 space-y-6">
@@ -76,10 +95,68 @@ export const LogsView = () => {
           <h1 className="text-3xl font-bold text-foreground">Log de Atividades</h1>
           <p className="text-muted-foreground">Histórico de todas as atividades da equipe</p>
         </div>
-        <Button className="bg-accent-gold text-accent-gold-foreground hover:bg-accent-gold/90">
-          <Plus className="w-4 h-4 mr-2" />
-          Nova Atividade
-        </Button>
+        <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+          <DialogTrigger asChild>
+            <Button className="bg-accent-gold text-accent-gold-foreground hover:bg-accent-gold/90">
+              <Plus className="w-4 h-4 mr-2" />
+              Nova Atividade
+            </Button>
+          </DialogTrigger>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Nova Atividade</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4 mt-4">
+              <div className="space-y-2">
+                <Label>Tipo de Atividade</Label>
+                <Select value={newLog.tipo_de_atividade} onValueChange={(v) => setNewLog({ ...newLog, tipo_de_atividade: v })}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Selecione o tipo" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Reunião">Reunião</SelectItem>
+                    <SelectItem value="Ligação">Ligação</SelectItem>
+                    <SelectItem value="Email">Email</SelectItem>
+                    <SelectItem value="Atividade">Atividade</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label>Assunto</Label>
+                <Input 
+                  value={newLog.assunto} 
+                  onChange={(e) => setNewLog({ ...newLog, assunto: e.target.value })}
+                  placeholder="Assunto da atividade"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Descrição</Label>
+                <Textarea 
+                  value={newLog.descricao} 
+                  onChange={(e) => setNewLog({ ...newLog, descricao: e.target.value })}
+                  placeholder="Descreva a atividade"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Status</Label>
+                <Select value={newLog.status} onValueChange={(v) => setNewLog({ ...newLog, status: v })}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Selecione o status" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Concluído">Concluído</SelectItem>
+                    <SelectItem value="Pendente retorno">Pendente retorno</SelectItem>
+                    <SelectItem value="Enviado">Enviado</SelectItem>
+                    <SelectItem value="Em andamento">Em andamento</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <Button onClick={handleAddLog} className="w-full bg-accent-gold text-accent-gold-foreground hover:bg-accent-gold/90">
+                Adicionar Atividade
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
       </div>
 
       {/* Filters */}
@@ -129,7 +206,7 @@ export const LogsView = () => {
                 <Activity className="w-4 h-4 text-accent-gold" />
               </div>
               <div>
-                <p className="text-2xl font-bold">{mockLogs.length}</p>
+                <p className="text-2xl font-bold">{logs.length}</p>
                 <p className="text-xs text-muted-foreground">Total Atividades</p>
               </div>
             </div>
@@ -172,7 +249,7 @@ export const LogsView = () => {
               </div>
               <div>
                 <p className="text-2xl font-bold">
-                  {new Set(mockLogs.map(log => log.usuarioId)).size}
+                  {new Set(logs.map(log => log.usuarioId)).size}
                 </p>
                 <p className="text-xs text-muted-foreground">Usuários Ativos</p>
               </div>
@@ -216,12 +293,10 @@ export const LogsView = () => {
             <Card key={log.idLog} className="shadow-elegant hover:shadow-glow transition-smooth">
               <CardContent className="p-6">
                 <div className="flex items-start space-x-4">
-                  {/* Timeline Icon */}
                   <div className="w-10 h-10 bg-accent-gold/20 rounded-full flex items-center justify-center flex-shrink-0">
                     <Icon className="w-5 h-5 text-accent-gold" />
                   </div>
 
-                  {/* Main Content */}
                   <div className="flex-1 min-w-0">
                     <div className="flex items-start justify-between">
                       <div className="flex-1">
@@ -229,7 +304,6 @@ export const LogsView = () => {
                         <p className="text-muted-foreground text-sm mt-1">{log.descricao}</p>
                       </div>
                       
-                      {/* Status Badge */}
                       <Badge 
                         variant={statusColors[log.status as keyof typeof statusColors] as any || 'secondary'}
                         className="ml-3"
@@ -238,7 +312,6 @@ export const LogsView = () => {
                       </Badge>
                     </div>
 
-                    {/* Metadata */}
                     <div className="flex items-center gap-6 mt-4 text-sm text-muted-foreground">
                       <div className="flex items-center gap-2">
                         <Avatar className="w-6 h-6">

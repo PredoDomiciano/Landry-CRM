@@ -2,14 +2,15 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { mockClientes, mockOportunidades, Cliente } from '@/data/mockData';
+import { Cliente } from '@/data/mockData';
 import { Search, Plus, Mail, Phone, MapPin, TrendingUp } from 'lucide-react';
 import { useState } from 'react';
 import { ClienteForm } from '@/components/forms/ClienteForm';
+import { useApp } from '@/contexts/AppContext';
 
 export const ClientesView = () => {
+  const { clientes, oportunidades, addCliente } = useApp();
   const [searchTerm, setSearchTerm] = useState('');
-  const [clientes, setClientes] = useState(mockClientes);
   const [showForm, setShowForm] = useState(false);
 
   const filteredClientes = clientes.filter(cliente =>
@@ -18,15 +19,12 @@ export const ClientesView = () => {
   );
 
   const handleAddCliente = (novoCliente: Omit<Cliente, 'idCliente'>) => {
-    const cliente: Cliente = {
-      ...novoCliente,
-      idCliente: Math.max(...clientes.map(c => c.idCliente)) + 1
-    };
-    setClientes([...clientes, cliente]);
+    addCliente(novoCliente);
+    setShowForm(false);
   };
 
   const getClienteOportunidades = (clienteId: number) => {
-    return mockOportunidades.filter(op => op.clienteId === clienteId);
+    return oportunidades.filter(op => op.clienteId === clienteId);
   };
 
   return (
@@ -74,7 +72,7 @@ export const ClientesView = () => {
                 <TrendingUp className="w-4 h-4 text-accent-gold" />
               </div>
               <div>
-                <p className="text-2xl font-bold">{mockClientes.length}</p>
+                <p className="text-2xl font-bold">{clientes.length}</p>
                 <p className="text-xs text-muted-foreground">Total de Clientes</p>
               </div>
             </div>
@@ -88,7 +86,7 @@ export const ClientesView = () => {
                 <TrendingUp className="w-4 h-4 text-success" />
               </div>
               <div>
-                <p className="text-2xl font-bold">{mockOportunidades.length}</p>
+                <p className="text-2xl font-bold">{oportunidades.length}</p>
                 <p className="text-xs text-muted-foreground">Oportunidades Ativas</p>
               </div>
             </div>
@@ -102,7 +100,7 @@ export const ClientesView = () => {
                 <TrendingUp className="w-4 h-4 text-primary" />
               </div>
               <div>
-                <p className="text-2xl font-bold">R$ {mockOportunidades.reduce((sum, op) => sum + op.valor_estimado, 0).toLocaleString('pt-BR')}</p>
+                <p className="text-2xl font-bold">R$ {oportunidades.reduce((sum, op) => sum + op.valor_estimado, 0).toLocaleString('pt-BR')}</p>
                 <p className="text-xs text-muted-foreground">Pipeline Total</p>
               </div>
             </div>
@@ -113,8 +111,8 @@ export const ClientesView = () => {
       {/* Clients Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
         {filteredClientes.map((cliente) => {
-          const oportunidades = getClienteOportunidades(cliente.idCliente);
-          const valorTotal = oportunidades.reduce((sum, op) => sum + op.valor_estimado, 0);
+          const clienteOportunidades = getClienteOportunidades(cliente.idCliente);
+          const valorTotal = clienteOportunidades.reduce((sum, op) => sum + op.valor_estimado, 0);
 
           return (
             <Card key={cliente.idCliente} className="shadow-elegant hover:shadow-glow transition-smooth">
@@ -126,7 +124,7 @@ export const ClientesView = () => {
                       Cliente desde {new Date(cliente.data).toLocaleDateString('pt-BR')}
                     </CardDescription>
                   </div>
-                  <Badge variant="secondary">{oportunidades.length} oportunidades</Badge>
+                  <Badge variant="secondary">{clienteOportunidades.length} oportunidades</Badge>
                 </div>
               </CardHeader>
               <CardContent className="space-y-4">
@@ -147,7 +145,7 @@ export const ClientesView = () => {
                 </div>
 
                 {/* Oportunidades */}
-                {oportunidades.length > 0 && (
+                {clienteOportunidades.length > 0 && (
                   <div className="border-t pt-4">
                     <div className="flex items-center justify-between mb-2">
                       <p className="text-sm font-medium">Pipeline</p>
@@ -156,7 +154,7 @@ export const ClientesView = () => {
                       </p>
                     </div>
                     <div className="space-y-1">
-                      {oportunidades.slice(0, 2).map((op) => (
+                      {clienteOportunidades.slice(0, 2).map((op) => (
                         <div key={op.idOportunidade} className="flex items-center justify-between text-xs">
                           <span className="truncate flex-1 mr-2">{op.nome_da_oportunidade}</span>
                           <Badge variant="outline" className="text-xs">
@@ -164,9 +162,9 @@ export const ClientesView = () => {
                           </Badge>
                         </div>
                       ))}
-                      {oportunidades.length > 2 && (
+                      {clienteOportunidades.length > 2 && (
                         <p className="text-xs text-muted-foreground">
-                          +{oportunidades.length - 2} mais oportunidades
+                          +{clienteOportunidades.length - 2} mais oportunidades
                         </p>
                       )}
                     </div>
