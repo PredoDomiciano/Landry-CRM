@@ -18,7 +18,7 @@ import com.landryjoias.crm.services.UsuarioService;
 
 @RestController
 @RequiredArgsConstructor // colocando isso não precisa colocar @Autowired no atributo
-@RequestMapping(value = "/usuario")
+@RequestMapping(value = "/usuarios")
 public class UsuarioController {
     private final UsuarioService usuarioService;
 

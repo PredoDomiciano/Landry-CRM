@@ -18,7 +18,7 @@ import com.landryjoias.crm.services.LogService;
 
 @RestController
 @RequiredArgsConstructor // colocando isso não precisa colocar @Autowired no atributo
-@RequestMapping(value = "/log")
+@RequestMapping(value = "/logs")
 public class LogController {
     private final LogService logService;
 

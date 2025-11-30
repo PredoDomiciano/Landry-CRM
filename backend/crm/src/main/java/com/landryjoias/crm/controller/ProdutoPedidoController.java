@@ -20,7 +20,7 @@ import com.landryjoias.crm.services.ProdutoPedidoService;
 
 @RestController
 @RequiredArgsConstructor // colocando isso não precisa colocar @Autowired no atributo
-@RequestMapping(value = "/produto_pedido")
+@RequestMapping(value = "/produtopedido")
 public class ProdutoPedidoController {
     private final ProdutoPedidoService ProdutoPedidoService;
 

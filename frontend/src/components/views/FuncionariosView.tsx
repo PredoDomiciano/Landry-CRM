@@ -1,29 +1,71 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react'; // Adicionei useEffect
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { Funcionario } from '@/data/mockData';
-import { Search, Plus, Mail, User, Users, Award } from 'lucide-react';
+// Removi o mockData e o useApp
+import { Search, Plus, Mail, User, Users, Award, Loader2 } from 'lucide-react'; // Adicionei Loader2 para carregamento
 import { FuncionarioForm } from '@/components/forms/FuncionarioForm';
-import { useApp } from '@/contexts/AppContext';
+import api from '@/services/api'; // <--- IMPORTANTE: Importe sua api aqui
+
+// Definindo a interface baseada no seu Back-end Java
+interface Funcionario {
+  idFuncionario?: number; // Opcional porque ao criar não tem ID ainda
+  nome: string;
+  cpf: string;
+  cargo: string;
+  email: string;
+}
 
 export const FuncionariosView = () => {
-  const { funcionarios, addFuncionario } = useApp();
+  // 1. Mudança: State local em vez de useApp
+  const [funcionarios, setFuncionarios] = useState<Funcionario[]>([]);
+  const [loading, setLoading] = useState(true); // Para mostrar "Carregando..."
   const [searchTerm, setSearchTerm] = useState('');
   const [showForm, setShowForm] = useState(false);
+
+  // 2. Mudança: Buscar dados do Java ao abrir a tela
+  const fetchFuncionarios = async () => {
+    try {
+      setLoading(true);
+      const response = await api.get('/funcionarios'); // Chama o backend
+      setFuncionarios(response.data);
+    } catch (error) {
+      console.error("Erro ao buscar funcionários:", error);
+      // Aqui você pode usar seu componente de Toast para avisar o erro
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchFuncionarios();
+  }, []);
+
+  // 3. Mudança: Salvar no Java quando criar novo
+  const handleAddFuncionario = async (novoFuncionario: any) => {
+    try {
+      // Envia para o Back-end
+      await api.post('/funcionarios', novoFuncionario);
+      
+      // Recarrega a lista para mostrar o novo
+      await fetchFuncionarios();
+      
+      setShowForm(false);
+    } catch (error) {
+      console.error("Erro ao salvar:", error);
+      alert("Erro ao salvar funcionário");
+    }
+  };
+
+  // --- Lógica Visual (Mantida Igual) ---
 
   const filteredFuncionarios = funcionarios.filter(funcionario =>
     funcionario.nome.toLowerCase().includes(searchTerm.toLowerCase()) ||
     funcionario.cargo.toLowerCase().includes(searchTerm.toLowerCase()) ||
     funcionario.email.toLowerCase().includes(searchTerm.toLowerCase())
   );
-
-  const handleAddFuncionario = (novoFuncionario: Omit<Funcionario, 'idFuncionario'>) => {
-    addFuncionario(novoFuncionario);
-    setShowForm(false);
-  };
 
   const getInitials = (nome: string) => {
     return nome.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
@@ -36,13 +78,25 @@ export const FuncionariosView = () => {
     return 'text-muted-foreground';
   };
 
+  // Estatísticas calculadas com os dados reais do banco
   const cargoStats = funcionarios.reduce((acc, funcionario) => {
     const categoria = funcionario.cargo.toLowerCase().includes('gerente') ? 'gerencia' :
-                     funcionario.cargo.toLowerCase().includes('senior') ? 'senior' :
-                     funcionario.cargo.toLowerCase().includes('designer') ? 'designer' : 'outros';
+                      funcionario.cargo.toLowerCase().includes('senior') ? 'senior' :
+                      funcionario.cargo.toLowerCase().includes('designer') ? 'designer' : 'outros';
     acc[categoria] = (acc[categoria] || 0) + 1;
     return acc;
   }, {} as Record<string, number>);
+
+  // --- Renderização ---
+
+  if (loading) {
+    return (
+      <div className="flex h-screen items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        <span className="ml-2">Carregando dados do sistema...</span>
+      </div>
+    );
+  }
 
   return (
     <div className="p-6 space-y-6">
@@ -80,7 +134,7 @@ export const FuncionariosView = () => {
         </div>
       </div>
 
-      {/* Statistics */}
+      {/* Statistics Cards (Mantidos iguais, agora usam dados reais) */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <Card>
           <CardContent className="p-4">
@@ -139,7 +193,7 @@ export const FuncionariosView = () => {
         </Card>
       </div>
 
-      {/* Team Overview */}
+      {/* Team Overview - Mantido igual */}
       <Card>
         <CardHeader>
           <CardTitle>Equipe por Função</CardTitle>
@@ -147,7 +201,8 @@ export const FuncionariosView = () => {
         </CardHeader>
         <CardContent>
           <div className="flex flex-wrap gap-4">
-            <div className="flex items-center space-x-2">
+            {/* ... (Conteúdo do gráfico de bolinhas mantido igual) ... */}
+             <div className="flex items-center space-x-2">
               <div className="w-4 h-4 rounded-full bg-accent-gold" />
               <span className="text-sm font-medium">Gerência</span>
               <Badge variant="secondary">{cargoStats['gerencia'] || 0}</Badge>
@@ -166,7 +221,7 @@ export const FuncionariosView = () => {
         </CardContent>
       </Card>
 
-      {/* Staff Grid */}
+      {/* Staff Grid - Cards dos Funcionários */}
       <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
         {filteredFuncionarios.map((funcionario) => (
           <Card key={funcionario.idFuncionario} className="shadow-elegant hover:shadow-glow transition-smooth">
@@ -187,7 +242,6 @@ export const FuncionariosView = () => {
               </div>
             </CardHeader>
             <CardContent className="space-y-4">
-              {/* Contact Info */}
               <div className="space-y-2">
                 <div className="flex items-center text-sm text-muted-foreground">
                   <Mail className="w-4 h-4 mr-2" />
@@ -199,21 +253,21 @@ export const FuncionariosView = () => {
                 </div>
               </div>
 
-              {/* Performance Indicators */}
+              {/* Dados Mockados de Vendas (Já que o Back ainda não manda isso) */}
               <div className="border-t pt-4">
                 <div className="grid grid-cols-2 gap-4 text-center">
                   <div className="p-2 bg-surface-variant rounded-lg">
                     <p className="text-xs text-muted-foreground">Vendas Mês</p>
-                    <p className="text-sm font-bold text-accent-gold">R$ 45.2k</p>
+                    <p className="text-sm font-bold text-accent-gold">R$ --</p>
                   </div>
                   <div className="p-2 bg-surface-variant rounded-lg">
                     <p className="text-xs text-muted-foreground">Clientes</p>
-                    <p className="text-sm font-bold">12</p>
+                    <p className="text-sm font-bold">--</p>
                   </div>
                 </div>
               </div>
 
-              {/* Responsibilities */}
+              {/* Responsabilidades baseadas no cargo */}
               <div className="space-y-2">
                 <p className="text-xs text-muted-foreground font-medium">Responsabilidades</p>
                 <div className="flex flex-wrap gap-1">
@@ -238,7 +292,6 @@ export const FuncionariosView = () => {
                 </div>
               </div>
 
-              {/* Actions */}
               <div className="flex gap-2 pt-2">
                 <Button variant="outline" size="sm" className="flex-1">
                   Ver Perfil

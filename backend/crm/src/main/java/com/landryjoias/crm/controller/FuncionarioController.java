@@ -18,7 +18,7 @@ import com.landryjoias.crm.services.FuncionarioService;
 
 @RestController
 @RequiredArgsConstructor // colocando isso não precisa colocar @Autowired no atributo
-@RequestMapping(value = "/funcionario")
+@RequestMapping(value = "/funcionarios")
 public class FuncionarioController {
     private final FuncionarioService funcionarioService;
 
@@ -40,7 +40,7 @@ public class FuncionarioController {
 
     @PutMapping("/{id}")
     public ResponseEntity<FuncionarioEntity> editar(@PathVariable int id,
-                                                    @RequestBody FuncionarioEntity funcionario) {
+            @RequestBody FuncionarioEntity funcionario) {
         FuncionarioEntity atualizado = funcionarioService.editar(id, funcionario);
         if (atualizado != null) {
             return new ResponseEntity<>(atualizado, HttpStatus.OK);
