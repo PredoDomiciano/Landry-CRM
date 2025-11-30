@@ -1,47 +1,73 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
-import { Funcionario } from '@/data/mockData';
+import { Funcionario } from '@/types/api'; // Ajuste o import conforme seu projeto
 
 interface FuncionarioFormProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onSubmit: (funcionario: Omit<Funcionario, 'idFuncionario'>) => void;
+  // Aceita qualquer objeto parcial para permitir edição
+  onSubmit: (funcionario: any) => Promise<void>;
+  initialData?: Funcionario | null; // Adicionado para edição
 }
 
-export const FuncionarioForm = ({ open, onOpenChange, onSubmit }: FuncionarioFormProps) => {
+export const FuncionarioForm = ({ open, onOpenChange, onSubmit, initialData }: FuncionarioFormProps) => {
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
+
+  // States para os campos (Edição)
+  const [nome, setNome] = useState('');
+  const [email, setEmail] = useState('');
+  const [cpf, setCpf] = useState('');
+  const [cargo, setCargo] = useState('');
+
+  // Preenche os dados quando abre para edição
+  useEffect(() => {
+    if (open) {
+      if (initialData) {
+        setNome(initialData.nome || '');
+        setEmail(initialData.email || '');
+        setCpf(initialData.cpf || '');
+        setCargo(initialData.cargo || '');
+      } else {
+        // Limpa para novo cadastro
+        setNome('');
+        setEmail('');
+        setCpf('');
+        setCargo('');
+      }
+    }
+  }, [open, initialData]);
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setLoading(true);
 
-    const formData = new FormData(e.currentTarget);
-    
-    const funcionario: Omit<Funcionario, 'idFuncionario'> = {
-      nome: formData.get('nome') as string,
-      email: formData.get('email') as string,
-      cpf: formData.get('cpf') as string,
-      cargo: formData.get('cargo') as string
+    // Cria o objeto payload
+    const funcionarioData = {
+      nome,
+      email,
+      cpf,
+      cargo
     };
 
     try {
-      onSubmit(funcionario);
+      await onSubmit(funcionarioData);
       toast({
-        title: "Funcionário adicionado",
-        description: `${funcionario.nome} foi adicionado com sucesso.`
+        title: "Sucesso",
+        description: initialData 
+          ? "Dados do funcionário atualizados." 
+          : "Funcionário adicionado com sucesso."
       });
-      onOpenChange(false);
-      e.currentTarget.reset();
+      // O pai (View) fechará o modal
     } catch (error) {
+      console.error(error);
       toast({
         title: "Erro",
-        description: "Não foi possível adicionar o funcionário.",
+        description: "Não foi possível salvar o funcionário.",
         variant: "destructive"
       });
     } finally {
@@ -53,9 +79,9 @@ export const FuncionarioForm = ({ open, onOpenChange, onSubmit }: FuncionarioFor
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[500px]">
         <DialogHeader>
-          <DialogTitle>Novo Funcionário</DialogTitle>
+          <DialogTitle>{initialData ? 'Editar Perfil' : 'Novo Funcionário'}</DialogTitle>
           <DialogDescription>
-            Adicione um novo funcionário à equipe
+            {initialData ? 'Atualize as informações do colaborador.' : 'Adicione um novo funcionário à equipe.'}
           </DialogDescription>
         </DialogHeader>
 
@@ -64,9 +90,10 @@ export const FuncionarioForm = ({ open, onOpenChange, onSubmit }: FuncionarioFor
             <Label htmlFor="nome">Nome Completo *</Label>
             <Input 
               id="nome" 
-              name="nome" 
               placeholder="Ex: João Silva Santos"
               required 
+              value={nome}
+              onChange={(e) => setNome(e.target.value)}
             />
           </div>
 
@@ -75,10 +102,11 @@ export const FuncionarioForm = ({ open, onOpenChange, onSubmit }: FuncionarioFor
               <Label htmlFor="email">E-mail *</Label>
               <Input 
                 id="email" 
-                name="email" 
                 type="email"
                 placeholder="joao@landryjoias.com"
                 required 
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
               />
             </div>
 
@@ -86,9 +114,10 @@ export const FuncionarioForm = ({ open, onOpenChange, onSubmit }: FuncionarioFor
               <Label htmlFor="cpf">CPF *</Label>
               <Input 
                 id="cpf" 
-                name="cpf" 
                 placeholder="000.000.000-00"
                 required 
+                value={cpf}
+                onChange={(e) => setCpf(e.target.value)}
               />
             </div>
           </div>
@@ -97,9 +126,10 @@ export const FuncionarioForm = ({ open, onOpenChange, onSubmit }: FuncionarioFor
             <Label htmlFor="cargo">Cargo *</Label>
             <Input 
               id="cargo" 
-              name="cargo" 
               placeholder="Ex: Vendedor"
               required 
+              value={cargo}
+              onChange={(e) => setCargo(e.target.value)}
             />
           </div>
 
@@ -114,10 +144,10 @@ export const FuncionarioForm = ({ open, onOpenChange, onSubmit }: FuncionarioFor
             </Button>
             <Button 
               type="submit" 
-              className="bg-accent-gold text-accent-gold-foreground hover:bg-accent-gold/90"
+              className="bg-accent-gold text-white hover:bg-yellow-600"
               disabled={loading}
             >
-              {loading ? 'Salvando...' : 'Salvar Funcionário'}
+              {loading ? 'Salvando...' : (initialData ? 'Atualizar' : 'Salvar')}
             </Button>
           </DialogFooter>
         </form>

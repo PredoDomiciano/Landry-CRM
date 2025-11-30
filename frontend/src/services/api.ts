@@ -1,5 +1,4 @@
-// src/services/api.ts
-import { API_BASE_URL } from '@/config/api'; // Certifica-te que criaste este arquivo simples com a URL http://localhost:8080
+import { API_BASE_URL } from '@/config/api'; // Certifique-se que este arquivo existe exportando a const API_BASE_URL
 import type { 
   Cliente, Funcionario, Log, Oportunidade, Pedido, Produto, Usuario, 
   LoginDTO, LoginResponse 
@@ -42,7 +41,7 @@ async function fetchApi<T>(url: string, options?: RequestInit): Promise<T> {
     if (response.status === 403 || response.status === 401) {
       console.warn("Acesso negado ou token expirado.");
       localStorage.removeItem('token');
-      window.location.href = '/login';
+      // window.location.href = '/login'; // Opcional: Redirecionar forçado
       throw new Error("Sessão expirada. Faça login novamente.");
     }
 
@@ -114,6 +113,9 @@ export const funcionarioApi = {
   getAll: () => fetchApi<Funcionario[]>(API_ENDPOINTS.funcionarios),
   create: (func: Partial<Funcionario>) => 
     fetchApi<Funcionario>(API_ENDPOINTS.funcionarios, { method: 'POST', body: JSON.stringify(func) }),
+  // --- ADICIONADO AQUI: UPDATE ---
+  update: (id: number, func: Partial<Funcionario>) => 
+    fetchApi<Funcionario>(`${API_ENDPOINTS.funcionarios}/${id}`, { method: 'PUT', body: JSON.stringify(func) }),
   delete: (id: number) => 
     fetchApi<void>(`${API_ENDPOINTS.funcionarios}/${id}`, { method: 'DELETE' }),
 };

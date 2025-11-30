@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -6,18 +6,51 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast'; 
-import type { Produto } from '@/types/api'; 
 
 interface ProdutoFormProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   // Ajuste: Aceita qualquer objeto parcial de Produto
-  onSubmit: (produto: any) => Promise<void>; 
+  onSubmit: (produto: any) => Promise<void>;
+  initialData?: any; // Adicionado para edição
 }
 
-export const ProdutoForm = ({ open, onOpenChange, onSubmit }: ProdutoFormProps) => {
+export const ProdutoForm = ({ open, onOpenChange, onSubmit, initialData }: ProdutoFormProps) => {
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
+
+  // States para controlar os inputs (necessário para edição)
+  const [nome, setNome] = useState('');
+  const [descricao, setDescricao] = useState('');
+  const [tipo, setTipo] = useState('');
+  const [material, setMaterial] = useState('');
+  const [valor, setValor] = useState('');
+  const [estoque, setEstoque] = useState('');
+  const [tamanho, setTamanho] = useState('0');
+
+  // Preenche o formulário quando initialData mudar ou o modal abrir
+  useEffect(() => {
+    if (open) {
+      if (initialData) {
+        setNome(initialData.nome || '');
+        setDescricao(initialData.descricao || '');
+        setTipo(initialData.tipo ? initialData.tipo.toString() : '');
+        setMaterial(initialData.material || '');
+        setValor(initialData.valor !== undefined ? initialData.valor.toString() : '');
+        setEstoque(initialData.quantidadeEstoque !== undefined ? initialData.quantidadeEstoque.toString() : '');
+        setTamanho(initialData.tamanho !== undefined ? initialData.tamanho.toString() : '0');
+      } else {
+        // Limpa o formulário para cadastro novo
+        setNome('');
+        setDescricao('');
+        setTipo('');
+        setMaterial('');
+        setValor('');
+        setEstoque('');
+        setTamanho('0');
+      }
+    }
+  }, [initialData, open]);
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -43,9 +76,9 @@ export const ProdutoForm = ({ open, onOpenChange, onSubmit }: ProdutoFormProps) 
       await onSubmit(produtoPayload);
       toast({
         title: "Sucesso!",
-        description: "Produto cadastrado no sistema."
+        description: initialData ? "Produto atualizado." : "Produto cadastrado no sistema."
       });
-      onOpenChange(false);
+      // Apenas fechamos se o pai não fechar, mas geralmente o pai fecha no onSubmit
     } catch (error) {
       console.error(error);
       toast({
@@ -62,25 +95,37 @@ export const ProdutoForm = ({ open, onOpenChange, onSubmit }: ProdutoFormProps) 
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Novo Produto</DialogTitle>
-          <DialogDescription>Preencha os dados da jóia.</DialogDescription>
+          <DialogTitle>{initialData ? 'Editar Produto' : 'Novo Produto'}</DialogTitle>
+          <DialogDescription>{initialData ? 'Altere os dados da jóia.' : 'Preencha os dados da jóia.'}</DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
           
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2 col-span-2">
               <Label htmlFor="nome">Nome *</Label>
-              <Input id="nome" name="nome" required />
+              <Input 
+                id="nome" 
+                name="nome" 
+                required 
+                value={nome} 
+                onChange={(e) => setNome(e.target.value)} 
+              />
             </div>
 
             <div className="space-y-2 col-span-2">
               <Label htmlFor="descricao">Descrição</Label>
-              <Textarea id="descricao" name="descricao" required />
+              <Textarea 
+                id="descricao" 
+                name="descricao" 
+                required 
+                value={descricao}
+                onChange={(e) => setDescricao(e.target.value)}
+              />
             </div>
 
             <div className="space-y-2">
               <Label htmlFor="tipo">Tipo *</Label>
-              <Select name="tipo" required>
+              <Select name="tipo" required value={tipo} onValueChange={setTipo}>
                 <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
                 <SelectContent>
                   {/* Values devem ser números como string */}
@@ -95,22 +140,51 @@ export const ProdutoForm = ({ open, onOpenChange, onSubmit }: ProdutoFormProps) 
 
             <div className="space-y-2">
               <Label htmlFor="material">Material *</Label>
-              <Input id="material" name="material" placeholder="Ex: Ouro 18k" required />
+              <Input 
+                id="material" 
+                name="material" 
+                placeholder="Ex: Ouro 18k" 
+                required 
+                value={material}
+                onChange={(e) => setMaterial(e.target.value)}
+              />
             </div>
 
             <div className="space-y-2">
               <Label htmlFor="valor">Preço (R$) *</Label>
-              <Input id="valor" name="valor" type="number" step="0.01" required />
+              <Input 
+                id="valor" 
+                name="valor" 
+                type="number" 
+                step="0.01" 
+                required 
+                value={valor}
+                onChange={(e) => setValor(e.target.value)}
+              />
             </div>
 
             <div className="space-y-2">
               <Label htmlFor="estoque">Estoque *</Label>
-              <Input id="estoque" name="estoque" type="number" required />
+              <Input 
+                id="estoque" 
+                name="estoque" 
+                type="number" 
+                required 
+                value={estoque}
+                onChange={(e) => setEstoque(e.target.value)}
+              />
             </div>
 
             <div className="space-y-2">
               <Label htmlFor="tamanho">Tamanho</Label>
-              <Input id="tamanho" name="tamanho" type="number" step="0.1" defaultValue="0" />
+              <Input 
+                id="tamanho" 
+                name="tamanho" 
+                type="number" 
+                step="0.1" 
+                value={tamanho}
+                onChange={(e) => setTamanho(e.target.value)}
+              />
             </div>
           </div>
 

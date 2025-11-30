@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -12,7 +12,9 @@ import type { Pedido, StatusPedido } from '@/types/api';
 interface PedidoFormProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onSubmit: (pedido: Omit<Pedido, 'idPedido'>) => Promise<void>;
+  // Ajuste: Aceita any para permitir o envio do payload formatado
+  onSubmit: (pedido: any) => Promise<void>;
+  initialData?: Pedido | null; // Para edição
 }
 
 interface ProdutoItem {
@@ -23,15 +25,48 @@ interface ProdutoItem {
   pedra?: string;
 }
 
-export const PedidoForm = ({ open, onOpenChange, onSubmit }: PedidoFormProps) => {
+export const PedidoForm = ({ open, onOpenChange, onSubmit, initialData }: PedidoFormProps) => {
   const { toast } = useToast();
   const { produtos, oportunidades } = useApp();
   const [loading, setLoading] = useState(false);
   
-  // Estado para a lista de itens dinâmica
+  // Estados do Formulário
+  const [oportunidadeId, setOportunidadeId] = useState<string>('');
+  const [status, setStatus] = useState<StatusPedido>('PENDENTE');
   const [itens, setItens] = useState<ProdutoItem[]>([
     { produtoId: 0, quantidade: 1, valor: 0, tamanho: '' }
   ]);
+
+  // Efeito para carregar dados na edição
+  useEffect(() => {
+    if (open) {
+      if (initialData) {
+        // Preencher Oportunidade
+        setOportunidadeId(initialData.oportunidade?.idOportunidade?.toString() || '');
+        // Preencher Status
+        setStatus(initialData.status);
+        
+        // Preencher Itens (Mapear do formato da API para o formato do Form)
+        if (initialData.itens && initialData.itens.length > 0) {
+            const itensFormatados = initialData.itens.map((item: any) => ({
+                produtoId: item.produto?.idProduto || 0,
+                quantidade: item.quantidade,
+                valor: item.valor,
+                tamanho: item.tamanho || '',
+                pedra: item.pedra || ''
+            }));
+            setItens(itensFormatados);
+        } else {
+            setItens([{ produtoId: 0, quantidade: 1, valor: 0, tamanho: '' }]);
+        }
+      } else {
+        // Limpar formulário (Novo Pedido)
+        setOportunidadeId('');
+        setStatus('PENDENTE');
+        setItens([{ produtoId: 0, quantidade: 1, valor: 0, tamanho: '' }]);
+      }
+    }
+  }, [open, initialData]);
 
   const addItem = () => {
     setItens([...itens, { produtoId: 0, quantidade: 1, valor: 0, tamanho: '' }]);
@@ -51,7 +86,6 @@ export const PedidoForm = ({ open, onOpenChange, onSubmit }: PedidoFormProps) =>
       const produto = produtos.find(p => p.idProduto === value);
       if (produto) {
         newItens[index].valor = produto.valor;
-        // Converte o tamanho para string, e protege contra null/undefined
         newItens[index].tamanho = produto.tamanho ? produto.tamanho.toString() : '';
       }
     }
@@ -67,8 +101,6 @@ export const PedidoForm = ({ open, onOpenChange, onSubmit }: PedidoFormProps) =>
     e.preventDefault();
     setLoading(true);
 
-    const formData = new FormData(e.currentTarget);
-    
     // 1. Validação básica
     const itensValidos = itens.filter(item => item.produtoId > 0 && item.quantidade > 0);
     if (itensValidos.length === 0) {
@@ -81,24 +113,21 @@ export const PedidoForm = ({ open, onOpenChange, onSubmit }: PedidoFormProps) =>
       return;
     }
 
-    // 2. Busca a Oportunidade (se selecionada)
-    const oportunidadeIdStr = formData.get('oportunidadeId') as string;
-    const oportunidade = oportunidadeIdStr 
-      ? oportunidades.find(o => o.idOportunidade === parseInt(oportunidadeIdStr)) 
+    // 2. Busca a Oportunidade
+    const oportunidade = oportunidadeId 
+      ? oportunidades.find(o => o.idOportunidade === parseInt(oportunidadeId)) 
       : undefined;
 
     // 3. Monta o Payload para o Java
-    // AQUI ESTÁ A CORREÇÃO PRINCIPAL: Enviamos apenas o ID do produto dentro do objeto
     const pedidoPayload: any = {
-      data: new Date().toISOString().split('T')[0], // YYYY-MM-DD
-      status: formData.get('status') as StatusPedido,
+      data: initialData ? initialData.data : new Date().toISOString().split('T')[0], // Mantém data original na edição
+      status: status,
       valorTotal: calcularTotal(),
       oportunidade: oportunidade ? { idOportunidade: oportunidade.idOportunidade } : null,
       itens: itensValidos.map(item => ({
-        // Enviamos apenas o ID, o Java busca o resto no banco e evita o erro do @Nonnull Material
         produto: { idProduto: item.produtoId }, 
         quantidade: item.quantidade,
-        tamanho: item.tamanho || 'U', // Valor padrão caso vazio
+        tamanho: item.tamanho || 'U',
         valor: item.valor,
         pedra: item.pedra || ''
       }))
@@ -108,13 +137,9 @@ export const PedidoForm = ({ open, onOpenChange, onSubmit }: PedidoFormProps) =>
       await onSubmit(pedidoPayload);
       toast({
         title: "Sucesso!",
-        description: "Pedido criado com sucesso."
+        description: initialData ? "Pedido atualizado." : "Pedido criado com sucesso."
       });
-      
-      // Resetar form
-      onOpenChange(false);
-      setItens([{ produtoId: 0, quantidade: 1, valor: 0, tamanho: '' }]);
-      
+      // onOpenChange(false); // O pai fecha
     } catch (error) {
       console.error(error);
       toast({
@@ -131,9 +156,9 @@ export const PedidoForm = ({ open, onOpenChange, onSubmit }: PedidoFormProps) =>
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[700px] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Novo Pedido</DialogTitle>
+          <DialogTitle>{initialData ? `Editar Pedido #${initialData.idPedido}` : 'Novo Pedido'}</DialogTitle>
           <DialogDescription>
-            Registre uma venda e adicione os produtos.
+            {initialData ? 'Altere os produtos ou status do pedido.' : 'Registre uma venda e adicione os produtos.'}
           </DialogDescription>
         </DialogHeader>
 
@@ -142,7 +167,7 @@ export const PedidoForm = ({ open, onOpenChange, onSubmit }: PedidoFormProps) =>
             {/* Oportunidade */}
             <div className="space-y-2">
               <Label htmlFor="oportunidadeId">Vincular a Oportunidade</Label>
-              <Select name="oportunidadeId">
+              <Select value={oportunidadeId} onValueChange={setOportunidadeId}>
                 <SelectTrigger>
                   <SelectValue placeholder="Selecione (Opcional)" />
                 </SelectTrigger>
@@ -159,7 +184,7 @@ export const PedidoForm = ({ open, onOpenChange, onSubmit }: PedidoFormProps) =>
             {/* Status */}
             <div className="space-y-2">
               <Label htmlFor="status">Status Atual *</Label>
-              <Select name="status" required defaultValue="PENDENTE">
+              <Select value={status} onValueChange={(v) => setStatus(v as StatusPedido)}>
                 <SelectTrigger>
                   <SelectValue placeholder="Selecione o status" />
                 </SelectTrigger>
@@ -245,7 +270,7 @@ export const PedidoForm = ({ open, onOpenChange, onSubmit }: PedidoFormProps) =>
 
                 {/* Valor Total da Linha (Visual) */}
                 <div className="col-span-1 text-center pb-2 text-xs font-bold text-slate-600">
-                   {(item.quantidade * item.valor).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                    {(item.quantidade * item.valor).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
                 </div>
 
                 {/* Botão Remover */}
@@ -287,7 +312,7 @@ export const PedidoForm = ({ open, onOpenChange, onSubmit }: PedidoFormProps) =>
               className="bg-accent-gold hover:bg-yellow-600 text-white font-bold"
               disabled={loading}
             >
-              {loading ? 'Processando...' : 'Finalizar Pedido'}
+              {loading ? 'Processando...' : (initialData ? 'Atualizar Pedido' : 'Finalizar Pedido')}
             </Button>
           </DialogFooter>
         </form>

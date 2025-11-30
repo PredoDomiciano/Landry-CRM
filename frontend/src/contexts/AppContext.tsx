@@ -11,7 +11,7 @@ interface AppContextType {
   logout: () => void;
   currentUser: Usuario | null;
   
-  // Dados
+  // --- DADOS (Listas) ---
   logs: Log[];
   clientes: Cliente[];
   oportunidades: Oportunidade[];
@@ -19,7 +19,7 @@ interface AppContextType {
   produtos: Produto[];
   funcionarios: Funcionario[];
   
-  // Ações CRUD
+  // --- AÇÕES CRUD (Adicionar) ---
   addLog: (log: Partial<Log>) => Promise<void>;
   addCliente: (cliente: Partial<Cliente>) => Promise<void>;
   addOportunidade: (oportunidade: Partial<Oportunidade>) => Promise<void>;
@@ -27,7 +27,19 @@ interface AppContextType {
   addProduto: (produto: Partial<Produto>) => Promise<void>;
   addFuncionario: (funcionario: Partial<Funcionario>) => Promise<void>;
   
+  // --- FUNÇÕES DE PRODUTO (Update/Delete) ---
+  updateProduto: (id: number, produto: Partial<Produto>) => Promise<void>;
+  
+  // --- FUNÇÕES DE FUNCIONÁRIO (Update/Delete) ---
+  deleteFuncionario: (id: number) => Promise<void>;
+  updateFuncionario: (id: number, funcionario: Partial<Funcionario>) => Promise<void>;
+
+  // --- FUNÇÕES DE PEDIDO (Novas - Update/Delete) ---
+  deletePedido: (id: number) => Promise<void>;
+  updatePedido: (id: number, pedido: Partial<Pedido>) => Promise<void>;
   updatePedidoStatus: (id: number, status: string) => Promise<void>;
+
+  // --- OUTROS ---
   updateOportunidadeStatus: (id: number, status: string) => Promise<void>;
 }
 
@@ -45,7 +57,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   const [produtos, setProdutos] = useState<Produto[]>([]);
   const [funcionarios, setFuncionarios] = useState<Funcionario[]>([]);
 
-  // Carregar dados quando entra
+  // Carregar dados ao iniciar (se logado)
   useEffect(() => {
     if (isLoggedIn) {
       refreshData();
@@ -55,7 +67,6 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   const refreshData = async () => {
     try {
       console.log("Atualizando dados do backend...");
-      // Executa todas as chamadas em paralelo
       const results = await Promise.allSettled([
         clienteApi.getAll(),
         produtoApi.getAll(),
@@ -66,8 +77,6 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       ]);
 
       if (results[0].status === 'fulfilled') setClientes(results[0].value);
-      else console.error("Erro Clientes:", results[0].reason);
-
       if (results[1].status === 'fulfilled') setProdutos(results[1].value);
       if (results[2].status === 'fulfilled') setPedidos(results[2].value);
       if (results[3].status === 'fulfilled') setOportunidades(results[3].value);
@@ -79,14 +88,28 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
-  // --- AUTENTICAÇÃO ---
   const login = async (email: string, senha: string): Promise<boolean> => {
     try {
       const data = await authApi.login({ email, senha });
+      
       if (data.token) {
         localStorage.setItem('token', data.token);
         setIsLoggedIn(true);
-        // Opcional: decodificar token se quiser dados do usuário agora
+        
+        // CORREÇÃO 1: Usando (data as any).user para evitar erro de tipo se LoginResponse não tiver 'user' definido
+        const userData = (data as any).user;
+        setCurrentUser(userData || { email, nome: 'Usuário' }); 
+        
+        // Log automático de login
+        await addLog({
+            titulo: "Login Realizado",
+            descricao: `Usuário ${email} acessou o sistema.`,
+            // CORREÇÃO 2: Convertendo Date para string ISO para satisfazer o tipo Log
+            data: new Date().toISOString(),
+            tipoDeAtividade: 4, 
+            usuario: userData
+        });
+        
         return true;
       }
       return false;
@@ -102,48 +125,82 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     setClientes([]);
     setPedidos([]);
     setOportunidades([]);
+    setProdutos([]);
+    setFuncionarios([]);
   };
 
-  // --- AÇÕES DE CADASTRO (CRUD) ---
-  // Todas chamam refreshData() no final para atualizar a tela
+  // --- AÇÕES CRUD (Create) ---
   
-  const addCliente = async (cliente: Partial<Cliente>) => {
-    try { await clienteApi.create(cliente); await refreshData(); } catch (e) { throw e; }
+  const addCliente = async (cliente: Partial<Cliente>) => { try { await clienteApi.create(cliente); await refreshData(); } catch (e) { throw e; } };
+  const addProduto = async (produto: Partial<Produto>) => { try { await produtoApi.create(produto); await refreshData(); } catch (e) { throw e; } };
+  const addPedido = async (pedido: Partial<Pedido>) => { try { await pedidoApi.create(pedido); await refreshData(); } catch (e) { throw e; } };
+  const addOportunidade = async (op: Partial<Oportunidade>) => { try { await oportunidadeApi.create(op); await refreshData(); } catch (e) { throw e; } };
+  const addFuncionario = async (func: Partial<Funcionario>) => { try { await funcionarioApi.create(func); await refreshData(); } catch (e) { throw e; } };
+  
+  // CORREÇÃO NO ADDLOG: Casting para 'any' para evitar erro TS2358
+  const addLog = async (log: Partial<Log>) => { 
+      try { 
+          const payload = {
+              ...log,
+              // Aqui usamos (log.data as any) para enganar o TS e permitir checar se é Date
+              data: (log.data as any) instanceof Date ? (log.data as any).toISOString() : log.data
+          };
+          await logApi.create(payload as Log); 
+          await refreshData(); 
+      } catch (e) { throw e; } 
   };
 
-  const addProduto = async (produto: Partial<Produto>) => {
-    try { await produtoApi.create(produto); await refreshData(); } catch (e) { throw e; }
+  // --- UPDATES E DELETES ---
+
+  // Produtos
+  const updateProduto = async (id: number, produto: Partial<Produto>) => {
+    try {
+        if (produtoApi.update) await produtoApi.update(id, produto);
+        await refreshData();
+    } catch (e) { throw e; }
   };
 
-  const addPedido = async (pedido: Partial<Pedido>) => {
-    try { await pedidoApi.create(pedido); await refreshData(); } catch (e) { throw e; }
+  // Funcionários
+  const deleteFuncionario = async (id: number) => {
+    try {
+      if (funcionarioApi.delete) await funcionarioApi.delete(id);
+      await refreshData();
+    } catch (e) { throw e; }
   };
 
-  const addOportunidade = async (op: Partial<Oportunidade>) => {
-    try { await oportunidadeApi.create(op); await refreshData(); } catch (e) { throw e; }
+  const updateFuncionario = async (id: number, funcionario: Partial<Funcionario>) => {
+    try {
+      if (funcionarioApi.update) await funcionarioApi.update(id, funcionario);
+      await refreshData();
+    } catch (e) { throw e; }
   };
 
-  const addFuncionario = async (func: Partial<Funcionario>) => {
-    try { await funcionarioApi.create(func); await refreshData(); } catch (e) { throw e; }
+  // Pedidos
+  const updatePedido = async (id: number, pedido: Partial<Pedido>) => {
+    try {
+        if (pedidoApi.update) await pedidoApi.update(id, pedido);
+        await refreshData();
+    } catch (e) { throw e; }
   };
 
-  const addLog = async (log: Partial<Log>) => {
-    try { await logApi.create(log); await refreshData(); } catch (e) { throw e; }
+  const deletePedido = async (id: number) => {
+    try {
+        if (pedidoApi.delete) await pedidoApi.delete(id);
+        await refreshData();
+    } catch (e) { throw e; }
   };
-
-  // --- AÇÕES DE ATUALIZAÇÃO ---
 
   const updatePedidoStatus = async (id: number, status: string) => {
     try {
       const pedidoAtual = pedidos.find(p => p.idPedido === id);
       if (pedidoAtual) {
-         // Envia o objeto atualizado. Ajuste conforme o Java espera (PATCH ou PUT completo)
          await pedidoApi.update(id, { ...pedidoAtual, status: status as any });
          await refreshData();
       }
     } catch (e) { console.error(e); }
   };
 
+  // Oportunidades
   const updateOportunidadeStatus = async (id: number, status: string) => {
     try {
        const opAtual = oportunidades.find(o => o.idOportunidade === id);
@@ -159,7 +216,10 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       isLoggedIn, login, logout, currentUser,
       logs, clientes, oportunidades, pedidos, produtos, funcionarios,
       addLog, addCliente, addOportunidade, addPedido, addProduto, addFuncionario,
-      updatePedidoStatus, updateOportunidadeStatus
+      updatePedidoStatus, updateOportunidadeStatus,
+      updateProduto,
+      deleteFuncionario, updateFuncionario,
+      deletePedido, updatePedido
     }}>
       {children}
     </AppContext.Provider>

@@ -4,11 +4,22 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Search, Plus, Package, Calendar, Eye, ChevronRight } from 'lucide-react';
+import { Search, Plus, Package, Calendar, Pencil, Trash2, ChevronRight } from 'lucide-react';
 import { PedidoForm } from '@/components/forms/PedidoForm';
 import { useApp } from '@/contexts/AppContext';
 import type { Pedido } from '@/types/api';
 import { STATUS_PEDIDO_LABELS } from '@/types/api';
+import { useToast } from '@/hooks/use-toast';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 const statusColors: Record<string, string> = {
   'PENDENTE': 'bg-yellow-100 text-yellow-700 border-yellow-200',
@@ -21,14 +32,18 @@ const statusColors: Record<string, string> = {
 };
 
 export const PedidosView = () => {
-  const { pedidos, addPedido, updatePedidoStatus } = useApp();
+  const { pedidos, addPedido, updatePedido, deletePedido, updatePedidoStatus, addLog, currentUser } = useApp();
+  const { toast } = useToast();
   
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
+  
+  // Estados para CRUD
   const [showForm, setShowForm] = useState(false);
+  const [pedidoEmEdicao, setPedidoEmEdicao] = useState<Pedido | null>(null);
+  const [pedidoParaDeletar, setPedidoParaDeletar] = useState<Pedido | null>(null);
 
   const filteredPedidos = pedidos.filter(pedido => {
-    // Busca por ID (converte numero para string) ou valor
     const searchLower = searchTerm.toLowerCase();
     const matchesSearch = 
         pedido.idPedido?.toString().includes(searchLower) ||
@@ -38,13 +53,69 @@ export const PedidosView = () => {
     return matchesSearch && matchesStatus;
   });
 
-  const handleAddPedido = async (novoPedido: Partial<Pedido>) => {
-    await addPedido(novoPedido);
-    setShowForm(false);
+  // Salvar (Novo ou Editar)
+  const handleSavePedido = async (dados: Partial<Pedido>) => {
+    try {
+      if (pedidoEmEdicao && pedidoEmEdicao.idPedido) {
+        // MODO EDIÇÃO
+        if (updatePedido) {
+            await updatePedido(pedidoEmEdicao.idPedido, dados);
+            // Log
+            await addLog({
+                titulo: "Pedido Atualizado",
+                descricao: `Pedido #${pedidoEmEdicao.idPedido} alterado por ${currentUser?.email || 'Admin'}.`,
+                data: new Date().toISOString(), // CORREÇÃO: Convertido para string
+                tipoDeAtividade: 5,
+                usuario: currentUser || undefined
+            });
+        }
+      } else {
+        // MODO CRIAÇÃO
+        await addPedido(dados);
+        // Log
+        await addLog({
+            titulo: "Novo Pedido",
+            descricao: `Novo pedido registrado no valor de R$ ${dados.valorTotal}.`,
+            data: new Date().toISOString(), // CORREÇÃO: Convertido para string
+            tipoDeAtividade: 5,
+            usuario: currentUser || undefined
+        });
+      }
+      setShowForm(false);
+      setPedidoEmEdicao(null);
+    } catch (error) {
+       // O form já dispara o toast de erro/sucesso, mas garantimos aqui
+       console.error(error);
+    }
+  };
+
+  const handleClickEditar = (pedido: Pedido) => {
+    setPedidoEmEdicao(pedido);
+    setShowForm(true);
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!pedidoParaDeletar || !deletePedido || !pedidoParaDeletar.idPedido) return;
+
+    try {
+        await deletePedido(pedidoParaDeletar.idPedido);
+        toast({ title: "Removido", description: "Pedido excluído com sucesso." });
+        
+        await addLog({
+            titulo: "Pedido Removido",
+            descricao: `Pedido #${pedidoParaDeletar.idPedido} foi excluído.`,
+            data: new Date().toISOString(), // CORREÇÃO: Convertido para string
+            tipoDeAtividade: 4,
+            usuario: currentUser || undefined
+        });
+    } catch (error) {
+        toast({ title: "Erro", description: "Erro ao excluir pedido.", variant: "destructive" });
+    } finally {
+        setPedidoParaDeletar(null);
+    }
   };
 
   const handleAvancarStatus = async (id: number, currentStatus: string) => {
-    // Fluxo simples de status. Podes ajustar a ordem conforme regra de negócio
     const fluxo = ['PENDENTE', 'CONFIRMADO', 'PAGO', 'PRODUCAO', 'ENVIADO', 'ENTREGUE'];
     const index = fluxo.indexOf(currentStatus);
     
@@ -61,7 +132,10 @@ export const PedidosView = () => {
           <h1 className="text-3xl font-bold tracking-tight text-primary">Pedidos</h1>
           <p className="text-muted-foreground">Acompanhe o fluxo de vendas e entregas.</p>
         </div>
-        <Button onClick={() => setShowForm(true)} className="bg-accent-gold hover:bg-yellow-600 text-white">
+        <Button 
+          onClick={() => { setPedidoEmEdicao(null); setShowForm(true); }} 
+          className="bg-accent-gold hover:bg-yellow-600 text-white"
+        >
           <Plus className="w-4 h-4 mr-2" />
           Novo Pedido
         </Button>
@@ -94,9 +168,33 @@ export const PedidosView = () => {
 
       <PedidoForm 
         open={showForm} 
-        onOpenChange={setShowForm}
-        onSubmit={handleAddPedido}
+        onOpenChange={(open) => {
+            setShowForm(open);
+            if(!open) setPedidoEmEdicao(null);
+        }}
+        onSubmit={handleSavePedido}
+        initialData={pedidoEmEdicao}
       />
+
+      <AlertDialog open={!!pedidoParaDeletar} onOpenChange={() => setPedidoParaDeletar(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Excluir Pedido?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Essa ação removerá o Pedido <b>#{pedidoParaDeletar?.idPedido}</b> e não poderá ser desfeita.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction 
+                onClick={handleConfirmDelete}
+                className="bg-red-600 hover:bg-red-700 text-white"
+            >
+                Excluir
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
         {filteredPedidos.map((pedido) => (
@@ -130,10 +228,24 @@ export const PedidosView = () => {
                 </div>
 
                 <div className="flex gap-2">
-                  <Button variant="outline" size="sm" className="flex-1">
-                    <Eye className="w-4 h-4 mr-2" /> Detalhes
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    className="flex-1"
+                    onClick={() => handleClickEditar(pedido)}
+                  >
+                    <Pencil className="w-4 h-4 mr-2" /> Editar
                   </Button>
                   
+                  <Button 
+                    variant="ghost" 
+                    size="sm" 
+                    className="text-red-500 hover:bg-red-50"
+                    onClick={() => setPedidoParaDeletar(pedido)}
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </Button>
+
                   {pedido.status !== 'ENTREGUE' && pedido.status !== 'CANCELADO' && (
                     <Button 
                       size="sm"
