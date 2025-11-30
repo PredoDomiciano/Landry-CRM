@@ -73,7 +73,7 @@ export interface Produto {
   tamanho: number; // Java espera double
   valor: number; // Java espera float
   quantidadeEstoque: number;
-  Material: string; // Java: Material (com M maiúsculo)
+  material: string; // Java: Material (com M maiúsculo)
 }
 
 // IDs compostos são complexos, vamos simplificar na interface de visualização

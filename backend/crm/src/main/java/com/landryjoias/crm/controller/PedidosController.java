@@ -30,12 +30,14 @@ public class PedidosController {
 
     @PostMapping
     public ResponseEntity<PedidosEntity> incluir(@RequestBody PedidosEntity pedidos) {
+        
         PedidosEntity novo = pedidosService.incluir(pedidos);
         if (novo != null) {
             return new ResponseEntity<>(novo, HttpStatus.CREATED);
         } else {
             return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
         }
+        
     }
 
     @PutMapping("/{id}")

@@ -31,11 +31,13 @@ public class ProdutosController {
     @PostMapping
     public ResponseEntity<ProdutosEntity> incluir(@RequestBody ProdutosEntity produtos) {
         ProdutosEntity novo = produtosService.incluir(produtos);
+        
         if (novo != null) {
             return new ResponseEntity<>(novo, HttpStatus.CREATED);
         } else {
             return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
         }
+ 
     }
 
     @PutMapping("/{id}")

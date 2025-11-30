@@ -35,7 +35,7 @@ export const ProdutoForm = ({ open, onOpenChange, onSubmit }: ProdutoFormProps) 
       valor: parseFloat((formData.get('valor') as string).replace(',', '.')), 
       quantidadeEstoque: parseInt(formData.get('estoque') as string),
       // Java espera "Material" com M maiúsculo
-      Material: formData.get('material') as string, 
+      material: formData.get('material') as string, 
       tamanho: parseFloat((formData.get('tamanho') as string) || '0'), 
     };
 

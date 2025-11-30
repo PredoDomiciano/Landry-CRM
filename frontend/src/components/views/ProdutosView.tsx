@@ -137,7 +137,7 @@ export const ProdutosView = () => {
               <div className="flex items-center gap-2 text-xs text-muted-foreground mb-4">
                  <Tag className="w-3 h-3" />
                  {/* O Java retorna Material com M maiúsculo */}
-                 {produto.Material} • Tam: {produto.tamanho > 0 ? produto.tamanho : 'Único'}
+                 {produto.material} • Tam: {produto.tamanho > 0 ? produto.tamanho : 'Único'}
               </div>
 
               <div className="flex gap-2">
