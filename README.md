@@ -1,9 +1,3 @@
-Aqui está um **README.md** completo e profissional, estruturado com base em todo o trabalho que fizemos juntos. Ele cobre desde a arquitetura até aos scripts de configuração do banco de dados para o primeiro acesso.
-
-Podes criar um arquivo chamado `README.md` na raiz do teu projeto e colar este conteúdo.
-
------
-
 # 💎 Landry Joias CRM
 
 Sistema de Gestão de Relacionamento com o Cliente (CRM) desenvolvido sob medida para joalherias. O projeto integra um Backend robusto em **Java Spring Boot** com um Frontend moderno em **React (Vite) + TypeScript**.
