@@ -1,83 +1,130 @@
-# Inter-CRM - Sistema de Gerenciamento de Clientes
+💎 Landry Joias CRM
+Sistema de Gestão de Relacionamento com o Cliente (CRM) desenvolvido sob medida para joalherias. O projeto integra um Backend robusto em Java Spring Boot com um Frontend moderno em React (Vite) + TypeScript.
 
-## 🌟 Visão Geral do Projeto
+🚀 Tecnologias Utilizadas
+Backend (API)
+Java 17
 
-Este projeto é um sistema de Gerenciamento de Relacionamento com o Cliente (CRM) para uma fábrica de joias. O objetivo é fornecer uma solução completa, segura e eficiente para gerir dados de clientes, pedidos e interações, otimizando o fluxo de trabalho da empresa.
+Spring Boot 3.2.0
 
-## 📁 Estrutura do Repositório
+Spring Security + JWT (Autenticação Stateless)
 
-O projeto é uma **monorepo**, ou seja, um único repositório que contém o código-fonte de várias partes da aplicação, organizadas da seguinte forma:
+Spring Data JPA / Hibernate (ORM)
 
--   **`backend/`**: Contém o projeto **Spring Boot** responsável pela lógica de negócio e pelas APIs REST.
--   **`banco-de-dados/`**: Armazena os scripts e o modelo de dados do banco de dados **SQL Server**.
--   **`frontend/`**: Inclui o projeto de frontend, construído com tecnologias modernas.
+SQL Server (Banco de Dados)
 
----
+Maven (Gerenciador de Dependências)
 
-## 🛠️ Tecnologias Utilizadas
+Frontend (Interface)
+React 18
 
-### Backend
+Vite (Build Tool)
 
-Desenvolvido em **Java** com o framework **Spring Boot**, o backend está configurado com as seguintes tecnologias principais:
+TypeScript
 
--   **Linguagem:** Java 17
--   **Framework:** Spring Boot 3
--   **Ferramenta de Construção:** Maven
--   **Dependências:** Spring Data JPA, Spring Security, Spring Web, Lombok e o driver JDBC para SQL Server.
+Tailwind CSS (Estilização)
 
-### Banco de Dados
+Shadcn/UI (Componentes Visuais)
 
-O banco de dados é gerido de forma independente, utilizando **SQL Server**.
+React Router DOM (Navegação)
 
-### Frontend
+Context API (Gerenciamento de Estado Global)
 
-O frontend é uma **Single-Page Application (SPA)**, construída com as seguintes tecnologias para uma experiência de utilizador fluida e moderna:
+⚙️ Funcionalidades
+Dashboard Gerencial: Visão geral de vendas, estoque crítico e funil de vendas.
 
--   **Framework:** React com TypeScript
--   **Ferramenta de Construção:** Vite
--   **Estilização:** Tailwind CSS (configurado com `postcss.config.js`)
--   **Componentes de UI:** Utiliza uma biblioteca de componentes (`shadcn/ui` ou similar, conforme sugerido por `components.json`).
--   **State Management:** Estrutura pronta para usar `hooks` e gerenciar o estado da aplicação.
+Autenticação Segura: Login via Token JWT com controle de sessão.
 
-A estrutura do frontend inclui pastas como `components`, `pages`, `lib` e `hooks`, o que demonstra uma arquitetura organizada e escalável.
+Gestão de Clientes: Cadastro completo com validação de CNPJ/Email.
 
----
+Controle de Estoque (Produtos): Cadastro de joias com tipos (Anel, Colar, etc.), materiais e controle de quantidade.
 
-## 🚀 Como Executar o Projeto
+Funil de Vendas (Oportunidades): Acompanhamento visual desde a prospecção até o fechamento.
 
-Para configurar e rodar o projeto localmente, siga estes passos para o backend e o frontend separadamente.
+Gestão de Pedidos: Criação de pedidos vinculados a oportunidades e produtos, com atualização de status (Pendente -> Confirmado -> Produção -> Entregue).
 
-### Backend
+Logs de Atividade: Registro de ações dos funcionários no sistema.
 
-1.  Navegue para a pasta `backend/landryJoias`.
-2.  Configure o banco de dados no arquivo `src/main/resources/application.properties` com as suas credenciais.
-3.  Execute a aplicação usando o Maven.
+🛠️ Pré-requisitos
+Java JDK 17 instalado.
 
-    ```bash
-    cd backend/landryJoias
-    mvn spring-boot:run
-    ```
+Node.js (v18 ou superior) instalado.
 
-### Frontend
+SQL Server instalado e rodando.
 
-1.  Navegue para a pasta `frontend/LandryJoias`.
-2.  Instale as dependências do projeto. Este projeto usa `bun`, mas também pode ser executado com `npm` ou `yarn`.
+Maven (opcional se usar wrapper).
 
-    ```bash
-    cd frontend/LandryJoias
-    bun install  # ou npm install / yarn install
-    ```
-3.  Inicie o servidor de desenvolvimento.
+📦 Como Rodar o Projeto
+1. Configuração do Banco de Dados
+Certifique-se de que o SQL Server está rodando e que o arquivo application.properties no Backend aponta para o banco correto.
 
-    ```bash
-    bun dev  # ou npm run dev / yarn dev
-    ```
+Importante: O sistema possui segurança ativada. Para o primeiro acesso, você deve criar um usuário administrador diretamente no banco de dados executando o seguinte script SQL:
 
-O backend estará acessível em `http://localhost:8080` e o frontend em `http://localhost:5173` (porta padrão do Vite).
+SQL
 
----
+USE LandryJoias; -- Ou o nome do seu banco
 
-## 🤝 Contribuições
+-- Inserir Usuário Admin (Senha: 123456)
+INSERT INTO Usuarios (email, senha, nivel_acesso) 
+VALUES ('admin@landryjoias.com', '123456', 'ADMINISTRADOR');
 
-Contribuições são bem-vindas! Sinta-se à vontade para abrir `issues` ou `pull requests` com propostas de melhorias, correções de bugs ou novas funcionalidades.
+-- Inserir Funcionário vinculado
+INSERT INTO Funcionarios (nome, cpf, cargo, email, id_usuario)
+VALUES ('Administrador', '000.000.000-00', 'Gerente', 'admin@landryjoias.com', 1);
+2. Rodar o Backend (API)
+Navegue até a pasta crm (Backend).
 
+Execute o projeto via Maven ou pela sua IDE (IntelliJ/Eclipse).
+
+Bash
+
+cd crm
+./mvnw spring-boot:run
+O servidor iniciará na porta 8080.
+
+3. Rodar o Frontend (Interface)
+Navegue até a pasta src (Frontend) ou a raiz onde está o package.json.
+
+Instale as dependências e inicie o servidor.
+
+Bash
+
+npm install
+npm run dev
+O frontend iniciará na porta 5173 (http://localhost:5173).
+
+Nota: A porta 5173 é obrigatória pois o CORS do Backend (WebConfig.java) está configurado para aceitar apenas esta origem.
+
+🔧 Estrutura do Projeto
+Backend (/crm)
+controller: Endpoints REST (Ex: ClienteController, PedidosController).
+
+entity: Modelos do Banco de Dados (Ex: ProdutosEntity, PedidosEntity). Atenção: Utilizamos construtores padrão para compatibilidade com Hibernate.
+
+security: Configuração de JWT, Filtros e CORS.
+
+service: Regras de negócio.
+
+Frontend (/src)
+components/forms: Formulários de cadastro (com conversão de tipos para o Java).
+
+components/layout: Sidebar e estrutura principal.
+
+contexts: AppContext.tsx (Gerencia estado global e comunicação com API).
+
+services: api.ts (Configuração do Axios/Fetch com Interceptor de Token).
+
+views: Telas principais (Dashboard, Clientes, Produtos, etc.).
+
+types: Interfaces TypeScript espelhando as Entidades Java.
+
+🐛 Solução de Problemas Comuns
+
+Erro 403 Forbidden ou Sessão Expirada:
+
+Limpe o "Local Storage" do navegador (F12 -> Application -> Local Storage).
+
+Faça login novamente para gerar um novo Token JWT.
+
+📝 Licença
+Desenvolvido para fins acadêmicos/comerciais para a Landry Joias.
