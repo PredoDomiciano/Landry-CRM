@@ -5,11 +5,10 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Eye, EyeOff, Loader2, Lock, Mail, Diamond } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { useApp } from '@/contexts/AppContext'; // <--- IMPORTANTE
+import { useApp } from '../../contexts/AppContext'; // Correção: Caminho relativo
 
 export const Login = () => {
   const navigate = useNavigate();
-  // Pegamos a função login do contexto global
   const { login } = useApp(); 
   
   const [email, setEmail] = useState('');
@@ -19,7 +18,6 @@ export const Login = () => {
   const [loading, setLoading] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
-    
     e.preventDefault();
     setError('');
     
@@ -31,11 +29,10 @@ export const Login = () => {
     setLoading(true);
 
     try {
-      // Usamos a função do Contexto, que salva o token e atualiza o estado isLoggedIn
       const sucesso = await login(email, senha);
       
       if (sucesso) {
-        navigate('/dashboard'); // Redireciona para o Dashboard
+        navigate('/dashboard');
       } else {
         setError('Email ou senha incorretos');
       }
@@ -67,7 +64,7 @@ export const Login = () => {
                 <Input 
                   id="email" 
                   type="email" 
-                  placeholder="admin@landryjoias.com"
+                  placeholder="usuario@exemplo.com" 
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   className="pl-10"
@@ -94,7 +91,8 @@ export const Login = () => {
                   onClick={() => setShowPassword(!showPassword)}
                   className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors"
                 >
-                  {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}\n                </button>
+                  {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                </button>
               </div>
             </div>
             

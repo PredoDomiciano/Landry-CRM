@@ -25,9 +25,10 @@ public class UsuarioEntity {
     @Column(nullable = false)
     private String senha;
 
+    // Aqui definimos o poder de acesso ao sistema
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, name = "nivelAcesso")
-    private nivelAcesso nivelAcesso;
+    private NivelAcesso nivelAcesso;
 
     @OneToOne(cascade = CascadeType.ALL)
     @JoinColumn(name = "idContato")

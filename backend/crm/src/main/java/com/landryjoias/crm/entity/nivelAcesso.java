@@ -1,6 +1,6 @@
 package com.landryjoias.crm.entity;
 
-public enum nivelAcesso {
+public enum NivelAcesso {
     PADRAO,
     GERENTE,
     ADMINISTRADOR
