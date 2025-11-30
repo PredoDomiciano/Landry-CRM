@@ -5,53 +5,62 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
-import { Pedido, mockClientes, mockProdutos } from '@/data/mockData';
+import { useApp } from '@/contexts/AppContext';
 import { Plus, Trash2 } from 'lucide-react';
+import type { Pedido, StatusPedido } from '@/types/api';
 
 interface PedidoFormProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onSubmit: (pedido: Omit<Pedido, 'idPedidos'>) => void;
+  onSubmit: (pedido: Omit<Pedido, 'idPedido'>) => Promise<void>;
 }
 
-interface ProdutoPedido {
+interface ProdutoItem {
   produtoId: number;
   quantidade: number;
-  preco_unitario: number;
+  valor: number;
+  tamanho: string;
+  pedra?: string;
 }
 
 export const PedidoForm = ({ open, onOpenChange, onSubmit }: PedidoFormProps) => {
   const { toast } = useToast();
+  const { produtos, oportunidades } = useApp();
   const [loading, setLoading] = useState(false);
-  const [produtos, setProdutos] = useState<ProdutoPedido[]>([
-    { produtoId: 0, quantidade: 1, preco_unitario: 0 }
+  
+  // Estado para a lista de itens dinâmica
+  const [itens, setItens] = useState<ProdutoItem[]>([
+    { produtoId: 0, quantidade: 1, valor: 0, tamanho: '' }
   ]);
 
-  const addProduto = () => {
-    setProdutos([...produtos, { produtoId: 0, quantidade: 1, preco_unitario: 0 }]);
+  const addItem = () => {
+    setItens([...itens, { produtoId: 0, quantidade: 1, valor: 0, tamanho: '' }]);
   };
 
-  const removeProduto = (index: number) => {
-    setProdutos(produtos.filter((_, i) => i !== index));
+  const removeItem = (index: number) => {
+    setItens(itens.filter((_, i) => i !== index));
   };
 
-  const updateProduto = (index: number, field: keyof ProdutoPedido, value: number) => {
-    const newProdutos = [...produtos];
-    newProdutos[index] = { ...newProdutos[index], [field]: value };
+  const updateItem = (index: number, field: keyof ProdutoItem, value: number | string) => {
+    const newItens = [...itens];
+    // Atualiza o campo específico
+    newItens[index] = { ...newItens[index], [field]: value };
     
-    // Auto-fill price when product is selected
+    // Se mudou o produto, preenche automaticamente o preço e tamanho
     if (field === 'produtoId') {
-      const produto = mockProdutos.find(p => p.idProduto === value);
+      const produto = produtos.find(p => p.idProduto === value);
       if (produto) {
-        newProdutos[index].preco_unitario = produto.valor;
+        newItens[index].valor = produto.valor;
+        // Converte o tamanho para string, e protege contra null/undefined
+        newItens[index].tamanho = produto.tamanho ? produto.tamanho.toString() : '';
       }
     }
     
-    setProdutos(newProdutos);
+    setItens(newItens);
   };
 
   const calcularTotal = () => {
-    return produtos.reduce((total, produto) => total + (produto.quantidade * produto.preco_unitario), 0);
+    return itens.reduce((total, item) => total + (item.quantidade * item.valor), 0);
   };
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -60,46 +69,57 @@ export const PedidoForm = ({ open, onOpenChange, onSubmit }: PedidoFormProps) =>
 
     const formData = new FormData(e.currentTarget);
     
-    // Validate produtos
-    const produtosValidos = produtos.filter(p => p.produtoId > 0 && p.quantidade > 0);
-    if (produtosValidos.length === 0) {
+    // 1. Validação básica
+    const itensValidos = itens.filter(item => item.produtoId > 0 && item.quantidade > 0);
+    if (itensValidos.length === 0) {
       toast({
         title: "Erro",
-        description: "Adicione pelo menos um produto ao pedido.",
+        description: "Adicione pelo menos um produto válido ao pedido.",
         variant: "destructive"
       });
       setLoading(false);
       return;
     }
 
-    const pedido: Omit<Pedido, 'idPedidos'> = {
-      numero: `PED-${Date.now()}`,
-      data: new Date().toISOString().split('T')[0],
-      status: formData.get('status') as 'pendente' | 'confirmado' | 'produção' | 'enviado' | 'entregue' | 'cancelado',
+    // 2. Busca a Oportunidade (se selecionada)
+    const oportunidadeIdStr = formData.get('oportunidadeId') as string;
+    const oportunidade = oportunidadeIdStr 
+      ? oportunidades.find(o => o.idOportunidade === parseInt(oportunidadeIdStr)) 
+      : undefined;
+
+    // 3. Monta o Payload para o Java
+    // AQUI ESTÁ A CORREÇÃO PRINCIPAL: Enviamos apenas o ID do produto dentro do objeto
+    const pedidoPayload: any = {
+      data: new Date().toISOString().split('T')[0], // YYYY-MM-DD
+      status: formData.get('status') as StatusPedido,
       valorTotal: calcularTotal(),
-      clienteId: parseInt(formData.get('clienteId') as string),
-      produtos: produtosValidos.map((produto, index) => ({
-        idProdutos: produto.produtoId,
-        idPedido: Date.now(),
-        quantidade: produto.quantidade,
-        preco: produto.preco_unitario,
-        valorPedido: produto.quantidade * produto.preco_unitario
+      oportunidade: oportunidade ? { idOportunidade: oportunidade.idOportunidade } : null,
+      itens: itensValidos.map(item => ({
+        // Enviamos apenas o ID, o Java busca o resto no banco e evita o erro do @Nonnull Material
+        produto: { idProduto: item.produtoId }, 
+        quantidade: item.quantidade,
+        tamanho: item.tamanho || 'U', // Valor padrão caso vazio
+        valor: item.valor,
+        pedra: item.pedra || ''
       }))
     };
 
     try {
-      onSubmit(pedido);
+      await onSubmit(pedidoPayload);
       toast({
-        title: "Pedido adicionado",
-        description: "Pedido foi adicionado com sucesso."
+        title: "Sucesso!",
+        description: "Pedido criado com sucesso."
       });
+      
+      // Resetar form
       onOpenChange(false);
-      setProdutos([{ produtoId: 0, quantidade: 1, preco_unitario: 0 }]);
-      e.currentTarget.reset();
+      setItens([{ produtoId: 0, quantidade: 1, valor: 0, tamanho: '' }]);
+      
     } catch (error) {
+      console.error(error);
       toast({
-        title: "Erro",
-        description: "Não foi possível adicionar o pedido.",
+        title: "Erro ao salvar",
+        description: "Verifique a conexão ou os dados preenchidos.",
         variant: "destructive"
       });
     } finally {
@@ -113,110 +133,130 @@ export const PedidoForm = ({ open, onOpenChange, onSubmit }: PedidoFormProps) =>
         <DialogHeader>
           <DialogTitle>Novo Pedido</DialogTitle>
           <DialogDescription>
-            Crie um novo pedido para um cliente
+            Registre uma venda e adicione os produtos.
           </DialogDescription>
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="grid grid-cols-2 gap-4">
+            {/* Oportunidade */}
             <div className="space-y-2">
-              <Label htmlFor="clienteId">Cliente *</Label>
-              <Select name="clienteId" required>
+              <Label htmlFor="oportunidadeId">Vincular a Oportunidade</Label>
+              <Select name="oportunidadeId">
                 <SelectTrigger>
-                  <SelectValue placeholder="Selecione o cliente" />
+                  <SelectValue placeholder="Selecione (Opcional)" />
                 </SelectTrigger>
                 <SelectContent>
-                  {mockClientes.map((cliente) => (
-                    <SelectItem key={cliente.idCliente} value={cliente.idCliente.toString()}>
-                      {cliente.nome_do_comercio}
+                  {oportunidades.map((op) => (
+                    <SelectItem key={op.idOportunidade} value={op.idOportunidade?.toString() || ''}>
+                      {op.nomeOportunidade}
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             </div>
 
+            {/* Status */}
             <div className="space-y-2">
-              <Label htmlFor="status">Status *</Label>
-              <Select name="status" required>
+              <Label htmlFor="status">Status Atual *</Label>
+              <Select name="status" required defaultValue="PENDENTE">
                 <SelectTrigger>
                   <SelectValue placeholder="Selecione o status" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="pendente">Pendente</SelectItem>
-                  <SelectItem value="confirmado">Confirmado</SelectItem>
-                  <SelectItem value="produção">Produção</SelectItem>
-                  <SelectItem value="enviado">Enviado</SelectItem>
-                  <SelectItem value="entregue">Entregue</SelectItem>
-                  <SelectItem value="cancelado">Cancelado</SelectItem>
+                  <SelectItem value="PENDENTE">Pendente</SelectItem>
+                  <SelectItem value="CONFIRMADO">Confirmado</SelectItem>
+                  <SelectItem value="PRODUCAO">Em Produção</SelectItem>
+                  <SelectItem value="ENVIADO">Enviado</SelectItem>
+                  <SelectItem value="ENTREGUE">Entregue</SelectItem>
+                  <SelectItem value="CANCELADO">Cancelado</SelectItem>
                 </SelectContent>
               </Select>
             </div>
           </div>
 
-          <div className="space-y-4">
+          <div className="space-y-4 border-t pt-4">
             <div className="flex items-center justify-between">
-              <Label>Produtos *</Label>
-              <Button type="button" variant="outline" onClick={addProduto}>
+              <Label className="text-lg font-semibold">Itens do Pedido</Label>
+              <Button type="button" variant="outline" size="sm" onClick={addItem}>
                 <Plus className="w-4 h-4 mr-2" />
                 Adicionar Produto
               </Button>
             </div>
 
-            {produtos.map((produto, index) => (
-              <div key={index} className="grid grid-cols-12 gap-2 items-end p-4 border rounded-lg">
-                <div className="col-span-5 space-y-2">
-                  <Label>Produto</Label>
+            {/* Lista Dinâmica de Itens */}
+            {itens.map((item, index) => (
+              <div key={index} className="grid grid-cols-12 gap-2 items-end p-3 bg-slate-50 rounded-lg border">
+                
+                {/* Seleção de Produto */}
+                <div className="col-span-4 space-y-1">
+                  <Label className="text-xs">Produto</Label>
                   <Select 
-                    value={produto.produtoId.toString()} 
-                    onValueChange={(value) => updateProduto(index, 'produtoId', parseInt(value))}
+                    value={item.produtoId.toString()} 
+                    onValueChange={(value) => updateItem(index, 'produtoId', parseInt(value))}
                   >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Selecione o produto" />
+                    <SelectTrigger className="h-9">
+                      <SelectValue placeholder="Produto..." />
                     </SelectTrigger>
                     <SelectContent>
-                      {mockProdutos.map((p) => (
-                        <SelectItem key={p.idProduto} value={p.idProduto.toString()}>
-                          {p.nome} - R$ {p.valor.toFixed(2)}
+                      {produtos.map((p) => (
+                        <SelectItem key={p.idProduto} value={p.idProduto?.toString() || ''}>
+                          {p.nome}
                         </SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
                 </div>
 
-                <div className="col-span-2 space-y-2">
-                  <Label>Qtd</Label>
+                {/* Quantidade */}
+                <div className="col-span-2 space-y-1">
+                  <Label className="text-xs">Qtd.</Label>
                   <Input 
                     type="number"
                     min="1"
-                    value={produto.quantidade}
-                    onChange={(e) => updateProduto(index, 'quantidade', parseInt(e.target.value) || 0)}
+                    className="h-9"
+                    value={item.quantidade}
+                    onChange={(e) => updateItem(index, 'quantidade', parseInt(e.target.value) || 1)}
                   />
                 </div>
 
-                <div className="col-span-3 space-y-2">
-                  <Label>Preço Unit.</Label>
+                {/* Tamanho */}
+                <div className="col-span-2 space-y-1">
+                  <Label className="text-xs">Tam.</Label>
+                  <Input 
+                    className="h-9"
+                    value={item.tamanho}
+                    placeholder="Único"
+                    onChange={(e) => updateItem(index, 'tamanho', e.target.value)}
+                  />
+                </div>
+
+                {/* Valor */}
+                <div className="col-span-2 space-y-1">
+                  <Label className="text-xs">Valor (R$)</Label>
                   <Input 
                     type="number"
                     step="0.01"
-                    value={produto.preco_unitario}
-                    onChange={(e) => updateProduto(index, 'preco_unitario', parseFloat(e.target.value) || 0)}
+                    className="h-9"
+                    value={item.valor}
+                    onChange={(e) => updateItem(index, 'valor', parseFloat(e.target.value) || 0)}
                   />
                 </div>
 
-                <div className="col-span-1 space-y-2">
-                  <Label>Total</Label>
-                  <div className="text-sm font-medium py-2">
-                    R$ {(produto.quantidade * produto.preco_unitario).toFixed(2)}
-                  </div>
+                {/* Valor Total da Linha (Visual) */}
+                <div className="col-span-1 text-center pb-2 text-xs font-bold text-slate-600">
+                   {(item.quantidade * item.valor).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
                 </div>
 
-                <div className="col-span-1">
-                  {produtos.length > 1 && (
+                {/* Botão Remover */}
+                <div className="col-span-1 pb-1">
+                  {itens.length > 1 && (
                     <Button 
                       type="button" 
-                      variant="outline" 
-                      size="sm"
-                      onClick={() => removeProduto(index)}
+                      variant="ghost" 
+                      size="icon"
+                      className="h-8 w-8 text-red-500 hover:bg-red-50"
+                      onClick={() => removeItem(index)}
                     >
                       <Trash2 className="w-4 h-4" />
                     </Button>
@@ -225,14 +265,15 @@ export const PedidoForm = ({ open, onOpenChange, onSubmit }: PedidoFormProps) =>
               </div>
             ))}
 
-            <div className="text-right">
-              <p className="text-lg font-semibold">
-                Total do Pedido: R$ {calcularTotal().toFixed(2)}
-              </p>
+            <div className="flex justify-end items-center pt-2 gap-2">
+              <span className="text-muted-foreground text-sm">Total do Pedido:</span>
+              <span className="text-2xl font-bold text-accent-gold">
+                {calcularTotal().toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+              </span>
             </div>
           </div>
 
-          <DialogFooter className="gap-2">
+          <DialogFooter className="gap-2 pt-4">
             <Button 
               type="button" 
               variant="outline" 
@@ -243,10 +284,10 @@ export const PedidoForm = ({ open, onOpenChange, onSubmit }: PedidoFormProps) =>
             </Button>
             <Button 
               type="submit" 
-              className="bg-accent-gold text-accent-gold-foreground hover:bg-accent-gold/90"
+              className="bg-accent-gold hover:bg-yellow-600 text-white font-bold"
               disabled={loading}
             >
-              {loading ? 'Salvando...' : 'Salvar Pedido'}
+              {loading ? 'Processando...' : 'Finalizar Pedido'}
             </Button>
           </DialogFooter>
         </form>

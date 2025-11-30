@@ -1,19 +1,25 @@
 import { useState } from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { useApp } from '@/contexts/AppContext';
-import { Diamond, Mail, Lock, Eye, EyeOff } from 'lucide-react';
+import { Eye, EyeOff, Loader2, Lock, Mail, Diamond } from 'lucide-react';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { useApp } from '@/contexts/AppContext'; // <--- IMPORTANTE
 
-export const LoginPage = () => {
+export const Login = () => {
+  const navigate = useNavigate();
+  // Pegamos a função login do contexto global
+  const { login } = useApp(); 
+  
   const [email, setEmail] = useState('');
   const [senha, setSenha] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
-  const { login } = useApp();
+  const [loading, setLoading] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
+    
     e.preventDefault();
     setError('');
     
@@ -21,49 +27,51 @@ export const LoginPage = () => {
       setError('Preencha todos os campos');
       return;
     }
-    
-    const success = login(email, senha);
-    if (!success) {
-      setError('Credenciais inválidas');
+
+    setLoading(true);
+
+    try {
+      // Usamos a função do Contexto, que salva o token e atualiza o estado isLoggedIn
+      const sucesso = await login(email, senha);
+      
+      if (sucesso) {
+        navigate('/dashboard'); // Redireciona para o Dashboard
+      } else {
+        setError('Email ou senha incorretos');
+      }
+    } catch (err) {
+      setError('Erro de conexão com o servidor');
+    } finally {
+      setLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background via-background to-primary/5 p-4">
-      {/* Background decorative elements */}
-      <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute -top-40 -right-40 w-80 h-80 bg-accent-gold/10 rounded-full blur-3xl" />
-        <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-primary/10 rounded-full blur-3xl" />
-      </div>
-      
-      <Card className="w-full max-w-md relative z-10 shadow-elegant border-border/50 backdrop-blur-sm">
-        <CardHeader className="text-center space-y-4">
-          <div className="mx-auto w-16 h-16 bg-gradient-to-br from-accent-gold to-accent-gold/70 rounded-2xl flex items-center justify-center shadow-lg">
-            <Diamond className="w-8 h-8 text-accent-gold-foreground" />
+    <div className="min-h-screen flex items-center justify-center bg-slate-50 p-4">
+      <Card className="w-full max-w-md shadow-lg">
+        <CardHeader className="text-center space-y-2">
+          <div className="flex justify-center mb-4">
+            <div className="h-16 w-16 bg-gradient-to-tr from-yellow-400 to-yellow-600 rounded-full flex items-center justify-center shadow-md">
+               <Diamond className="h-8 w-8 text-white" />
+            </div>
           </div>
-          <div>
-            <CardTitle className="text-2xl font-bold bg-gradient-to-r from-foreground to-foreground/70 bg-clip-text">
-              Landry Joias CRM
-            </CardTitle>
-            <CardDescription className="mt-2">
-              Entre com suas credenciais para acessar o sistema
-            </CardDescription>
-          </div>
+          <CardTitle className="text-2xl font-bold text-slate-800">Landry Jóias</CardTitle>
+          <CardDescription>Entre com suas credenciais para acessar o CRM</CardDescription>
         </CardHeader>
-        
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="email">Email</Label>
               <div className="relative">
-                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                <Input
-                  id="email"
-                  type="email"
-                  placeholder="seu@email.com"
+                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 w-4 h-4" />
+                <Input 
+                  id="email" 
+                  type="email" 
+                  placeholder="admin@landryjoias.com"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   className="pl-10"
+                  required
                 />
               </div>
             </div>
@@ -71,36 +79,44 @@ export const LoginPage = () => {
             <div className="space-y-2">
               <Label htmlFor="senha">Senha</Label>
               <div className="relative">
-                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                <Input
-                  id="senha"
-                  type={showPassword ? 'text' : 'password'}
-                  placeholder="••••••••"
+                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 w-4 h-4" />
+                <Input 
+                  id="senha" 
+                  type={showPassword ? "text" : "password"}
+                  placeholder="******"
                   value={senha}
                   onChange={(e) => setSenha(e.target.value)}
                   className="pl-10 pr-10"
+                  required
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors"
                 >
-                  {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                </button>
+                  {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}\n                </button>
               </div>
             </div>
             
             {error && (
-              <p className="text-sm text-destructive text-center">{error}</p>
+              <div className="p-3 bg-red-50 border border-red-100 rounded-md">
+                <p className="text-sm text-red-600 text-center">{error}</p>
+              </div>
             )}
             
-            <Button type="submit" className="w-full bg-accent-gold text-accent-gold-foreground hover:bg-accent-gold/90">
-              Entrar
+            <Button 
+              type="submit" 
+              className="w-full bg-gradient-to-r from-yellow-500 to-yellow-700 hover:from-yellow-600 hover:to-yellow-800 text-white font-bold py-3"
+              disabled={loading}
+            >
+              {loading ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Entrando...
+                </>
+              ) : (
+                'Entrar'
+              )}
             </Button>
-            
-            <p className="text-xs text-muted-foreground text-center mt-4">
-              Demo: use qualquer email e senha para entrar
-            </p>
           </form>
         </CardContent>
       </Card>

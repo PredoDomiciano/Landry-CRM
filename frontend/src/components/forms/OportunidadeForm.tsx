@@ -1,21 +1,21 @@
 import { useState } from 'react';
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
-import { Oportunidade, mockClientes } from '@/data/mockData';
+import { useApp } from '@/contexts/AppContext';
 
 interface OportunidadeFormProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onSubmit: (oportunidade: Omit<Oportunidade, 'idOportunidade'>) => void;
+  onSubmit: (op: any) => Promise<void>;
 }
 
 export const OportunidadeForm = ({ open, onOpenChange, onSubmit }: OportunidadeFormProps) => {
   const { toast } = useToast();
+  const { clientes } = useApp(); // Precisamos da lista para buscar o objeto completo
   const [loading, setLoading] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -24,29 +24,27 @@ export const OportunidadeForm = ({ open, onOpenChange, onSubmit }: OportunidadeF
 
     const formData = new FormData(e.currentTarget);
     
-    const oportunidade: Omit<Oportunidade, 'idOportunidade'> = {
-      clienteId: parseInt(formData.get('clienteId') as string),
-      nome_da_oportunidade: formData.get('nomeOportunidade') as string,
-      versao_do_funil: formData.get('descricao') as string,
-      valor_estimado: parseFloat(formData.get('valorEstimado') as string),
-      data_de_fechamento_estimada: formData.get('dataFechamento') as string,
-      status: formData.get('status') as 'prospecção' | 'qualificação' | 'proposta' | 'negociação' | 'fechada' | 'perdida'
+    // 1. Achar o objeto cliente real baseado no ID selecionado
+    const clienteId = parseInt(formData.get('clienteId') as string);
+    const clienteSelecionado = clientes.find(c => c.idCliente === clienteId);
+
+    // 2. Montar o payload
+    const oportunidadePayload = {
+      nomeOportunidade: formData.get('nome') as string,
+      valorEstimado: parseFloat(formData.get('valor') as string),
+      estagioFunil: formData.get('estagio') as string,
+      dataDeFechamentoEstimada: formData.get('data') as string, // Formato YYYY-MM-DD
+      // Envia o objeto completo, não só o ID
+      cliente: clienteSelecionado 
     };
 
     try {
-      onSubmit(oportunidade);
-      toast({
-        title: "Oportunidade adicionada",
-        description: `${oportunidade.nome_da_oportunidade} foi adicionada com sucesso.`
-      });
+      await onSubmit(oportunidadePayload);
+      toast({ title: "Sucesso!", description: "Oportunidade criada." });
       onOpenChange(false);
-      e.currentTarget.reset();
     } catch (error) {
-      toast({
-        title: "Erro",
-        description: "Não foi possível adicionar a oportunidade.",
-        variant: "destructive"
-      });
+      console.error(error);
+      toast({ title: "Erro", description: "Falha ao salvar.", variant: "destructive" });
     } finally {
       setLoading(false);
     }
@@ -54,25 +52,18 @@ export const OportunidadeForm = ({ open, onOpenChange, onSubmit }: OportunidadeF
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[500px]">
-        <DialogHeader>
-          <DialogTitle>Nova Oportunidade</DialogTitle>
-          <DialogDescription>
-            Adicione uma nova oportunidade de venda
-          </DialogDescription>
-        </DialogHeader>
-
+      <DialogContent>
+        <DialogHeader><DialogTitle>Nova Oportunidade</DialogTitle></DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
+          
           <div className="space-y-2">
-            <Label htmlFor="clienteId">Cliente *</Label>
+            <Label>Cliente *</Label>
             <Select name="clienteId" required>
-              <SelectTrigger>
-                <SelectValue placeholder="Selecione o cliente" />
-              </SelectTrigger>
+              <SelectTrigger><SelectValue placeholder="Selecione o Cliente" /></SelectTrigger>
               <SelectContent>
-                {mockClientes.map((cliente) => (
-                  <SelectItem key={cliente.idCliente} value={cliente.idCliente.toString()}>
-                    {cliente.nome_do_comercio}
+                {clientes.map(c => (
+                  <SelectItem key={c.idCliente} value={c.idCliente?.toString() || ""}>
+                    {c.nomeDoComercio} ({c.cnpj})
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -80,82 +71,38 @@ export const OportunidadeForm = ({ open, onOpenChange, onSubmit }: OportunidadeF
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="nomeOportunidade">Nome da Oportunidade *</Label>
-            <Input 
-              id="nomeOportunidade" 
-              name="nomeOportunidade" 
-              placeholder="Ex: Conjunto de alianças"
-              required 
-            />
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="descricao">Descrição</Label>
-            <Textarea 
-              id="descricao" 
-              name="descricao" 
-              placeholder="Detalhes sobre a oportunidade..."
-              rows={3}
-            />
+            <Label>Nome da Oportunidade *</Label>
+            <Input name="nome" placeholder="Ex: Venda de Anel de Noivado" required />
           </div>
 
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="valorEstimado">Valor Estimado (R$) *</Label>
-              <Input 
-                id="valorEstimado" 
-                name="valorEstimado" 
-                type="number"
-                step="0.01"
-                placeholder="0,00"
-                required 
-              />
+              <Label>Valor Est. (R$)</Label>
+              <Input name="valor" type="number" step="0.01" required />
             </div>
-
             <div className="space-y-2">
-              <Label htmlFor="dataFechamento">Data Est. Fechamento *</Label>
-              <Input 
-                id="dataFechamento" 
-                name="dataFechamento" 
-                type="date"
-                required 
-              />
+              <Label>Data Fechamento</Label>
+              <Input name="data" type="date" required />
             </div>
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="status">Status *</Label>
-            <Select name="status" required>
-              <SelectTrigger>
-                <SelectValue placeholder="Selecione o status" />
-              </SelectTrigger>
+            <Label>Estágio *</Label>
+            <Select name="estagio" defaultValue="PROSPECCAO">
+              <SelectTrigger><SelectValue /></SelectTrigger>
               <SelectContent>
-                <SelectItem value="prospecção">Prospecção</SelectItem>
-                <SelectItem value="qualificação">Qualificação</SelectItem>
-                <SelectItem value="proposta">Proposta</SelectItem>
-                <SelectItem value="negociação">Negociação</SelectItem>
-                <SelectItem value="fechada">Fechada</SelectItem>
-                <SelectItem value="perdida">Perdida</SelectItem>
+                <SelectItem value="PROSPECCAO">Prospecção</SelectItem>
+                <SelectItem value="QUALIFICACAO">Qualificação</SelectItem>
+                <SelectItem value="PROPOSTA">Proposta</SelectItem>
+                <SelectItem value="NEGOCIACAO">Negociação</SelectItem>
+                <SelectItem value="FECHADA">Fechada</SelectItem>
               </SelectContent>
             </Select>
           </div>
 
-          <DialogFooter className="gap-2">
-            <Button 
-              type="button" 
-              variant="outline" 
-              onClick={() => onOpenChange(false)}
-              disabled={loading}
-            >
-              Cancelar
-            </Button>
-            <Button 
-              type="submit" 
-              className="bg-accent-gold text-accent-gold-foreground hover:bg-accent-gold/90"
-              disabled={loading}
-            >
-              {loading ? 'Salvando...' : 'Salvar Oportunidade'}
-            </Button>
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Cancelar</Button>
+            <Button type="submit" disabled={loading} className="bg-accent-gold text-white">Salvar</Button>
           </DialogFooter>
         </form>
       </DialogContent>

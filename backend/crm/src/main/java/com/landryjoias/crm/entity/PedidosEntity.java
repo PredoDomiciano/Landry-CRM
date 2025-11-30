@@ -28,7 +28,7 @@ public class PedidosEntity {
     private com.landryjoias.crm.entity.StatusPedido status;
 
     @OneToOne
-    @JoinColumn(name = "id_oportunidade")
+    @JoinColumn(name = "idOportunidade")
     private OportunidadesEntity oportunidade;
 
     // Relacionamento complexo com Produtos (veja abaixo)

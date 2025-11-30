@@ -20,7 +20,7 @@ public class UsuarioService {
       Optional<UsuarioEntity> usuarioExistente = this.usuarioRepository.findById(id);
       if (usuarioExistente.isPresent()) {
          UsuarioEntity usuarioAtualizada = (UsuarioEntity) usuarioExistente.get();
-         usuarioAtualizada.setLogin(usuario.getLogin());
+         usuarioAtualizada.setEmail(usuario.getEmail());
          usuarioAtualizada.setSenha(usuario.getSenha());
          usuarioAtualizada.setNivelAcesso(usuario.getNivelAcesso());
          return (UsuarioEntity) this.usuarioRepository.save(usuarioAtualizada);

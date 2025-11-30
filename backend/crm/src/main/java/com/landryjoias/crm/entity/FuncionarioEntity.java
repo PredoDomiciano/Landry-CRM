@@ -26,4 +26,7 @@ public class FuncionarioEntity {
     private String cargo;
     @Column(nullable = false)
     private String email;
+    @OneToOne(cascade = CascadeType.ALL)
+    @JoinColumn(name = "idUsuario", referencedColumnName = "idUsuario")
+    private UsuarioEntity usuario;
 }

@@ -18,7 +18,7 @@ public class ContatosEntity {
     private String cep;
     private String complemento;
 
-    @Column(name = "numero_casa")
+    @Column(name = "numeroCasa")
     private String numeroCasa; // O primeiro "numero" do diagrama
 
     @Column(name = "telefone")

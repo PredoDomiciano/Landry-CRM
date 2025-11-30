@@ -23,7 +23,7 @@ public class LogEntity {
     @Nonnull
     private String titulo;
     @Nonnull
-    @Column(name = "tipo_atividade")
+    @Column(name = "tipoAtividade")
     private int tipoDeAtividade;
     @Nonnull
     private String assunto;
@@ -34,7 +34,7 @@ public class LogEntity {
     private LocalDateTime data;
 
     @ManyToOne
-    @JoinColumn(name = "id_usuario")
+    @JoinColumn(name = "idUsuario")
     private UsuarioEntity usuario;
 
 }

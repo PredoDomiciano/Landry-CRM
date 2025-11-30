@@ -1,32 +1,39 @@
 package com.landryjoias.crm.entity;
 
 import java.util.List;
-
 import jakarta.persistence.*;
-import lombok.Data;
+import lombok.AllArgsConstructor;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 
 @Table(name = "Usuarios")
 @Entity
-@Data
+@Getter
+@Setter
+@AllArgsConstructor
+@NoArgsConstructor // <--- Essencial
 public class UsuarioEntity {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Integer idUsuario;
+
     @Column(nullable = false, unique = true)
-    private String login;
+    private String email;
+
     @Column(nullable = false)
     private String senha;
-    // FAZER CRIPTOGRAFIA DA SENHA SE SOBRAR TEMPO
+
     @Enumerated(EnumType.STRING)
-    @Column(nullable = false)
+    @Column(nullable = false, name = "nivelAcesso")
     private nivelAcesso nivelAcesso;
-    // Relacionamento 1:1 com Contatos (Usuario TEM UM contato)
+
     @OneToOne(cascade = CascadeType.ALL)
-    @JoinColumn(name = "id_contato")
+    @JoinColumn(name = "idContato")
     private ContatosEntity contato;
 
-    // Relacionamento 1:N com Logs (Um usuário gera VÁRIOS logs)
-    // O 'mappedBy' diz que quem manda na relação é a classe LogEntity
+    @JsonIgnore
     @OneToMany(mappedBy = "usuario")
     private List<LogEntity> logs;
 }

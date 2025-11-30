@@ -2,6 +2,8 @@ package com.landryjoias.crm.entity;
 
 import java.util.List;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
+
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
@@ -20,16 +22,17 @@ public class ClienteEntity {
     private Integer idCliente;
     @Column(unique = true, nullable = false)
     private String CNPJ;
-    @Column(name = "nome_comercio", nullable = false, unique = true)
+    @Column(name = "nomeComercio", nullable = false, unique = true)
     private String nomeDoComercio;
     @Column(unique = true, nullable = false)
     private String email;
 
     @OneToOne(cascade = CascadeType.ALL)
-    @JoinColumn(name = "id_usuario")
+    @JoinColumn(name = "idUsuario")
     private UsuarioEntity usuario;
 
     // Um cliente tem VÁRIAS oportunidades
+    @JsonIgnore
     @OneToMany(mappedBy = "cliente")
     private List<OportunidadesEntity> oportunidades;
 }

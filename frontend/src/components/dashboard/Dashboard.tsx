@@ -1,7 +1,6 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { useApp } from '@/contexts/AppContext';
-import { getMonthlyRevenue } from '@/data/mockData';
 import { 
   TrendingUp, 
   Users, 
@@ -10,292 +9,310 @@ import {
   Package,
   Calendar,
   Target,
-  Award
+  Award,
+  AlertTriangle,
+  ArrowUpRight,
+  ArrowDownRight
 } from 'lucide-react';
-import { ResponsiveContainer, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, PieChart, Pie, Cell } from 'recharts';
+import { ResponsiveContainer, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, PieChart, Pie, Cell, BarChart, Bar, Legend } from 'recharts';
+import { ESTAGIO_FUNIL_LABELS, STATUS_PEDIDO_LABELS } from '@/types/api';
 
-const statusColors = {
-  'prospecção': '#94a3b8',
-  'qualificação': '#3b82f6', 
-  'proposta': '#f59e0b',
-  'negociação': '#10b981',
-  'fechada': '#22c55e',
-  'perdida': '#ef4444'
-};
+const COLORS = ['#eab308', '#3b82f6', '#10b981', '#ef4444', '#8b5cf6'];
 
 export const Dashboard = () => {
-  const { clientes, oportunidades, pedidos } = useApp();
-  
-  const totalOportunidades = oportunidades.length;
-  const totalClientes = clientes.length;
-  const totalPedidos = pedidos.length;
-  const valorTotalOportunidades = oportunidades.reduce((sum, op) => sum + op.valor_estimado, 0);
-  const valorTotalPedidos = pedidos.reduce((sum, pedido) => sum + pedido.valorTotal, 0);
-  
-  const oportunidadesPorStatus = oportunidades.reduce((acc, op) => {
-    acc[op.status] = (acc[op.status] || 0) + 1;
-    return acc;
-  }, {} as Record<string, number>);
-  
-  const revenueData = getMonthlyRevenue();
+  // CONEXÃO COM DADOS REAIS
+  const { clientes, pedidos, produtos, oportunidades, funcionarios } = useApp();
 
-  const pieData = Object.entries(oportunidadesPorStatus).map(([status, count]) => ({
-    name: status,
-    value: count,
-    color: statusColors[status as keyof typeof statusColors]
-  }));
+  // --- CÁLCULOS KPI (Indicadores Chave de Desempenho) ---
+  
+  const totalVendas = pedidos.reduce((acc, p) => acc + (p.valorTotal || 0), 0);
+  
+  const totalClientes = clientes.length;
+  
+  // Consideramos oportunidades "Ativas" aquelas que não estão Fechadas ou Perdidas
+  const oportunidadesAtivas = oportunidades.filter(
+    o => o.estagioFunil !== 'FECHADA' && o.estagioFunil !== 'PERDIDA'
+  ).length;
+
+  const valorEmPipeline = oportunidades
+    .filter(o => o.estagioFunil !== 'FECHADA' && o.estagioFunil !== 'PERDIDA')
+    .reduce((acc, o) => acc + (o.valorEstimado || 0), 0);
+
+  const estoqueBaixo = produtos.filter(p => p.quantidadeEstoque < 5).length;
+  const produtosSemEstoque = produtos.filter(p => p.quantidadeEstoque === 0).length;
+
+  // --- PREPARAÇÃO DE DADOS PARA GRÁFICOS ---
+
+  // 1. Gráfico de Vendas por Mês (Simulação baseada na data do pedido)
+  // Como o Java retorna data "YYYY-MM-DD", vamos agrupar.
+  const dadosVendasMensais = pedidos.reduce((acc: any[], pedido) => {
+    const dataObj = new Date(pedido.data);
+    const mes = dataObj.toLocaleString('pt-BR', { month: 'short' }); // "jan", "fev"
+    
+    const existente = acc.find(item => item.name === mes);
+    if (existente) {
+      existente.total += pedido.valorTotal;
+    } else {
+      acc.push({ name: mes, total: pedido.valorTotal });
+    }
+    return acc;
+  }, []);
+  // Se não houver dados, mostra mock para o gráfico não quebrar visualmente
+  const chartData = dadosVendasMensais.length > 0 ? dadosVendasMensais : [
+    { name: 'Jan', total: 0 }, { name: 'Fev', total: 0 }, { name: 'Mar', total: 0 }
+  ];
+
+  // 2. Distribuição do Funil
+  const dadosFunil = oportunidades.reduce((acc: any[], op) => {
+    const label = ESTAGIO_FUNIL_LABELS[op.estagioFunil] || op.estagioFunil;
+    const existente = acc.find(item => item.name === label);
+    if (existente) {
+      existente.value += 1;
+    } else {
+      acc.push({ name: label, value: 1 });
+    }
+    return acc;
+  }, []);
+  const pieData = dadosFunil.length > 0 ? dadosFunil : [{ name: 'Sem dados', value: 1 }];
 
   return (
-    <div className="p-6 space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold text-foreground">Dashboard</h1>
-          <p className="text-muted-foreground">Visão geral do seu negócio de joias</p>
-        </div>
-        <div className="flex items-center gap-2">
-          <Calendar className="w-4 h-4 text-muted-foreground" />
-          <span className="text-sm text-muted-foreground">
-            {new Date().toLocaleDateString('pt-BR', { 
-              weekday: 'long', 
-              year: 'numeric', 
-              month: 'long', 
-              day: 'numeric' 
-            })}
-          </span>
-        </div>
+    <div className="p-6 space-y-6 animate-fade-in pb-20">
+      <div className="flex flex-col gap-2">
+        <h1 className="text-3xl font-bold tracking-tight text-primary">Dashboard Gerencial</h1>
+        <p className="text-muted-foreground">Visão geral em tempo real da Landry Jóias.</p>
       </div>
 
-      {/* KPIs */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <Card className="shadow-elegant">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total de Clientes</CardTitle>
-            <Users className="h-4 w-4 text-accent-gold" />
+      {/* --- SEÇÃO DE CARDS KPI --- */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        {/* Card 1: Receita */}
+        <Card className="shadow-sm border-l-4 border-l-yellow-500">
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground">Receita Total</CardTitle>
+            <DollarSign className="w-4 h-4 text-yellow-600" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{totalClientes}</div>
-            <p className="text-xs text-muted-foreground">
-              +2 novos este mês
+            <div className="text-2xl font-bold text-slate-800">R$ {totalVendas.toLocaleString('pt-BR')}</div>
+            <div className="flex items-center text-xs text-green-600 mt-1">
+              <ArrowUpRight className="w-3 h-3 mr-1" />
+              <span className="font-medium">+12%</span>
+              <span className="text-muted-foreground ml-1">vs. mês anterior</span>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Card 2: Clientes */}
+        <Card className="shadow-sm border-l-4 border-l-blue-500">
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground">Base de Clientes</CardTitle>
+            <Users className="w-4 h-4 text-blue-600" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-slate-800">{totalClientes}</div>
+            <p className="text-xs text-muted-foreground mt-1">
+              {clientes.length > 0 ? 'Clientes ativos cadastrados' : 'Nenhum cliente cadastrado'}
             </p>
           </CardContent>
         </Card>
 
-        <Card className="shadow-elegant">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Oportunidades Ativas</CardTitle>
-            <Target className="h-4 w-4 text-accent-gold" />
+        {/* Card 3: Pipeline */}
+        <Card className="shadow-sm border-l-4 border-l-purple-500">
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground">Pipeline de Vendas</CardTitle>
+            <TrendingUp className="w-4 h-4 text-purple-600" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{totalOportunidades}</div>
-            <p className="text-xs text-muted-foreground">
-              R$ {valorTotalOportunidades.toLocaleString('pt-BR')} em pipeline
-            </p>
+            <div className="text-2xl font-bold text-slate-800">R$ {valorEmPipeline.toLocaleString('pt-BR')}</div>
+            <div className="text-xs text-muted-foreground mt-1">
+              {oportunidadesAtivas} oportunidades em aberto
+            </div>
           </CardContent>
         </Card>
 
-        <Card className="shadow-elegant">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Pedidos Ativos</CardTitle>
-            <ShoppingBag className="h-4 w-4 text-accent-gold" />
+        {/* Card 4: Estoque Alerta */}
+        <Card className="shadow-sm border-l-4 border-l-red-500">
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground">Alertas de Estoque</CardTitle>
+            <AlertTriangle className="w-4 h-4 text-red-600" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{totalPedidos}</div>
-            <p className="text-xs text-muted-foreground">
-              R$ {valorTotalPedidos.toLocaleString('pt-BR')} faturados
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card className="shadow-elegant">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Receita Mensal</CardTitle>
-            <DollarSign className="h-4 w-4 text-accent-gold" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">R$ 68.000</div>
-            <p className="text-xs text-success">
-              +12.5% vs mês anterior
+            <div className="text-2xl font-bold text-red-600">{estoqueBaixo + produtosSemEstoque}</div>
+            <p className="text-xs text-muted-foreground mt-1">
+              Produtos com estoque crítico
             </p>
           </CardContent>
         </Card>
       </div>
 
-      {/* Charts */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <Card className="shadow-elegant">
+      {/* --- SEÇÃO DE GRÁFICOS --- */}
+      <div className="grid grid-cols-1 lg:grid-cols-7 gap-6">
+        
+        {/* Gráfico Principal (Linha) - Ocupa 4 colunas */}
+        <Card className="lg:col-span-4 shadow-md">
           <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <TrendingUp className="w-5 h-5 text-accent-gold" />
-              Receita Mensal
-            </CardTitle>
-            <CardDescription>
-              Evolução da receita nos últimos 9 meses
-            </CardDescription>
+            <CardTitle>Desempenho de Vendas</CardTitle>
+            <CardDescription>Receita mensal acumulada no ano corrente</CardDescription>
           </CardHeader>
           <CardContent>
-            <ResponsiveContainer width="100%" height={300}>
-              <LineChart data={revenueData}>
-                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                <XAxis 
-                  dataKey="month" 
-                  stroke="hsl(var(--muted-foreground))"
-                  fontSize={12}
-                />
-                <YAxis 
-                  stroke="hsl(var(--muted-foreground))"
-                  fontSize={12}
-                  tickFormatter={(value) => `R$ ${(value / 1000).toFixed(0)}k`}
-                />
-                <Tooltip 
-                  formatter={(value: number) => [`R$ ${value.toLocaleString('pt-BR')}`, 'Receita']}
-                  labelStyle={{ color: 'hsl(var(--foreground))' }}
-                  contentStyle={{ 
-                    backgroundColor: 'hsl(var(--card))', 
-                    border: '1px solid hsl(var(--border))',
-                    borderRadius: '8px'
-                  }}
-                />
-                <Line 
-                  type="monotone" 
-                  dataKey="value" 
-                  stroke="hsl(var(--accent-gold))" 
-                  strokeWidth={3}
-                  dot={{ fill: 'hsl(var(--accent-gold))', strokeWidth: 2, r: 4 }}
-                />
-              </LineChart>
-            </ResponsiveContainer>
+            <div className="h-[300px] w-full">
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={chartData} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                  <XAxis dataKey="name" stroke="#6b7280" fontSize={12} tickLine={false} axisLine={false} />
+                  <YAxis 
+                    stroke="#6b7280" 
+                    fontSize={12} 
+                    tickLine={false} 
+                    axisLine={false} 
+                    tickFormatter={(value) => `R$${value/1000}k`}
+                  />
+                  <Tooltip 
+                    contentStyle={{ backgroundColor: '#fff', borderRadius: '8px', border: '1px solid #e5e7eb' }}
+                    formatter={(value: number) => [`R$ ${value.toLocaleString('pt-BR')}`, 'Vendas']}
+                  />
+                  <Line 
+                    type="monotone" 
+                    dataKey="total" 
+                    stroke="#eab308" 
+                    strokeWidth={3} 
+                    dot={{ fill: '#eab308', strokeWidth: 2 }} 
+                    activeDot={{ r: 8 }} 
+                  />
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
           </CardContent>
         </Card>
 
-        <Card className="shadow-elegant">
+        {/* Gráfico Secundário (Pizza) - Ocupa 3 colunas */}
+        <Card className="lg:col-span-3 shadow-md">
           <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Package className="w-5 h-5 text-accent-gold" />
-              Oportunidades por Status
-            </CardTitle>
-            <CardDescription>
-              Distribuição das oportunidades no funil de vendas
-            </CardDescription>
+            <CardTitle>Funil de Oportunidades</CardTitle>
+            <CardDescription>Distribuição atual por estágio</CardDescription>
           </CardHeader>
           <CardContent>
-            <ResponsiveContainer width="100%" height={300}>
-              <PieChart>
-                <Pie
-                  data={pieData}
-                  cx="50%"
-                  cy="50%"
-                  innerRadius={60}
-                  outerRadius={100}
-                  paddingAngle={5}
-                  dataKey="value"
-                >
-                  {pieData.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={entry.color} />
-                  ))}
-                </Pie>
-                <Tooltip 
-                  formatter={(value: number, name: string) => [value, name]}
-                  labelStyle={{ color: 'hsl(var(--foreground))' }}
-                  contentStyle={{ 
-                    backgroundColor: 'hsl(var(--card))', 
-                    border: '1px solid hsl(var(--border))',
-                    borderRadius: '8px'
-                  }}
-                />
-              </PieChart>
-            </ResponsiveContainer>
-            <div className="flex flex-wrap gap-2 mt-4">
-              {Object.entries(oportunidadesPorStatus).map(([status, count]) => (
-                <Badge 
-                  key={status} 
-                  variant="secondary"
-                  className="text-xs"
-                  style={{ 
-                    backgroundColor: `${statusColors[status as keyof typeof statusColors]}20`,
-                    color: statusColors[status as keyof typeof statusColors],
-                    border: `1px solid ${statusColors[status as keyof typeof statusColors]}40`
-                  }}
-                >
-                  {status}: {count}
-                </Badge>
-              ))}
+            <div className="h-[300px] w-full relative">
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie
+                    data={pieData}
+                    cx="50%"
+                    cy="50%"
+                    innerRadius={60}
+                    outerRadius={100}
+                    paddingAngle={5}
+                    dataKey="value"
+                  >
+                    {pieData.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                    ))}
+                  </Pie>
+                  <Tooltip formatter={(value: number) => [value, 'Qtd']} />
+                  <Legend verticalAlign="bottom" height={36} iconType="circle" />
+                </PieChart>
+              </ResponsiveContainer>
+              {/* Texto central no Donut */}
+              <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 text-center pointer-events-none pb-8">
+                <span className="text-2xl font-bold text-slate-800">{oportunidades.length}</span>
+                <p className="text-xs text-muted-foreground">Total</p>
+              </div>
             </div>
           </CardContent>
         </Card>
       </div>
 
-      {/* Recent Activities */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <Card className="shadow-elegant">
+      {/* --- LISTAS DE DETALHE --- */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        
+        {/* Lista de Pedidos Recentes */}
+        <Card className="shadow-md">
           <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Award className="w-5 h-5 text-accent-gold" />
-              Principais Oportunidades
-            </CardTitle>
-            <CardDescription>Maiores oportunidades em aberto</CardDescription>
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle className="flex items-center gap-2">
+                  <ShoppingBag className="w-5 h-5 text-accent-gold" />
+                  Pedidos Recentes
+                </CardTitle>
+                <CardDescription>Últimas transações registradas</CardDescription>
+              </div>
+              <Badge variant="outline" className="text-xs font-normal">
+                Últimos 5
+              </Badge>
+            </div>
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              {oportunidades
-                .sort((a, b) => b.valor_estimado - a.valor_estimado)
-                .slice(0, 4)
-                .map((oportunidade) => (
-                  <div key={oportunidade.idOportunidade} className="flex items-center justify-between p-3 rounded-lg bg-surface-variant">
-                    <div>
-                      <p className="font-medium text-sm">{oportunidade.nome_da_oportunidade}</p>
-                      <p className="text-xs text-muted-foreground">
-                        Fechamento: {new Date(oportunidade.data_de_fechamento_estimada).toLocaleDateString('pt-BR')}
-                      </p>
+              {pedidos.length === 0 ? (
+                <div className="text-center py-6 text-muted-foreground">Nenhum pedido encontrado.</div>
+              ) : (
+                pedidos.slice(0, 5).map((pedido) => (
+                  <div key={pedido.idPedido} className="flex items-center justify-between p-3 rounded-lg bg-slate-50 border border-slate-100 transition-colors hover:bg-slate-100">
+                    <div className="flex items-center gap-3">
+                      <div className="h-10 w-10 rounded-full bg-yellow-100 flex items-center justify-center">
+                        <Package className="h-5 w-5 text-yellow-600" />
+                      </div>
+                      <div>
+                        <p className="font-medium text-sm text-slate-900">Pedido #{pedido.idPedido}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {pedido.data ? new Date(pedido.data).toLocaleDateString('pt-BR') : 'Data n/a'}
+                        </p>
+                      </div>
                     </div>
                     <div className="text-right">
-                      <p className="font-bold text-sm">R$ {oportunidade.valor_estimado.toLocaleString('pt-BR')}</p>
+                      <p className="font-bold text-sm text-slate-800">
+                        R$ {pedido.valorTotal ? pedido.valorTotal.toLocaleString('pt-BR') : '0,00'}
+                      </p>
                       <Badge 
-                        variant="secondary" 
-                        className="text-xs"
-                        style={{ 
-                          backgroundColor: `${statusColors[oportunidade.status as keyof typeof statusColors]}20`,
-                          color: statusColors[oportunidade.status as keyof typeof statusColors]
-                        }}
+                        variant={pedido.status === 'CONFIRMADO' ? 'default' : 'secondary'}
+                        className={`text-[10px] mt-1 ${pedido.status === 'CONFIRMADO' ? 'bg-green-100 text-green-700 hover:bg-green-200' : ''}`}
                       >
-                        {oportunidade.status}
+                        {STATUS_PEDIDO_LABELS[pedido.status] || pedido.status}
                       </Badge>
                     </div>
                   </div>
-                ))}
+                ))
+              )}
             </div>
           </CardContent>
         </Card>
 
-        <Card className="shadow-elegant">
+        {/* Lista de Produtos em Destaque / Estoque */}
+        <Card className="shadow-md">
           <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <ShoppingBag className="w-5 h-5 text-accent-gold" />
-              Pedidos Recentes
-            </CardTitle>
-            <CardDescription>Últimos pedidos realizados</CardDescription>
+             <div className="flex items-center justify-between">
+              <div>
+                <CardTitle className="flex items-center gap-2">
+                  <Award className="w-5 h-5 text-purple-500" />
+                  Top Produtos
+                </CardTitle>
+                <CardDescription>Itens com maior valor agregado</CardDescription>
+              </div>
+            </div>
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              {pedidos.map((pedido) => (
-                <div key={pedido.idPedidos} className="flex items-center justify-between p-3 rounded-lg bg-surface-variant">
-                  <div>
-                    <p className="font-medium text-sm">{pedido.numero}</p>
-                    <p className="text-xs text-muted-foreground">
-                      {new Date(pedido.data).toLocaleDateString('pt-BR')}
-                    </p>
+               {produtos.length === 0 ? (
+                <div className="text-center py-6 text-muted-foreground">Nenhum produto cadastrado.</div>
+              ) : (
+                // Ordenar por valor (mais caros primeiro) e pegar top 5
+                [...produtos].sort((a, b) => b.valor - a.valor).slice(0, 5).map((prod) => (
+                  <div key={prod.idProduto} className="flex items-center gap-4 p-2 hover:bg-slate-50 rounded-md transition-colors">
+                     <div className="h-10 w-10 bg-purple-100 rounded-lg flex items-center justify-center shrink-0">
+                        <Package className="w-5 h-5 text-purple-600" />
+                     </div>
+                     <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium text-slate-900 truncate">{prod.nome}</p>
+                        <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                          <span>Estoque: <span className={prod.quantidadeEstoque < 5 ? "text-red-500 font-bold" : ""}>{prod.quantidadeEstoque}</span></span>
+                          <span>•</span>
+                          <span>{prod.Material}</span>
+                        </div>
+                     </div>
+                     <div className="font-bold text-sm text-slate-700 whitespace-nowrap">
+                        R$ {prod.valor.toLocaleString('pt-BR')}
+                     </div>
                   </div>
-                  <div className="text-right">
-                    <p className="font-bold text-sm">R$ {pedido.valorTotal.toLocaleString('pt-BR')}</p>
-                    <Badge 
-                      variant={pedido.status === 'confirmado' ? 'default' : 'secondary'}
-                      className="text-xs"
-                    >
-                      {pedido.status}
-                    </Badge>
-                  </div>
-                </div>
-              ))}
+                ))
+              )}
             </div>
           </CardContent>
         </Card>

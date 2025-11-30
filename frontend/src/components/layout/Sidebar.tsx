@@ -2,102 +2,83 @@ import { useState } from 'react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { useApp } from '@/contexts/AppContext';
+import { useNavigate, useLocation } from 'react-router-dom'; // Importante
 import { 
-  Home, 
-  Users, 
-  TrendingUp, 
-  ShoppingBag, 
-  Package, 
-  UserCog,
-  Activity,
-  Menu,
-  X,
-  Gem,
-  HelpCircle,
-  LogOut
+  Home, Users, TrendingUp, ShoppingBag, 
+  Package, UserCog, Activity, Menu, 
+  X, Gem, HelpCircle, LogOut 
 } from 'lucide-react';
 
-interface SidebarProps {
-  activeTab: string;
-  onTabChange: (tab: string) => void;
-}
-
 const navigation = [
-  { id: 'dashboard', name: 'Dashboard', icon: Home },
-  { id: 'clientes', name: 'Clientes', icon: Users },
-  { id: 'oportunidades', name: 'Oportunidades', icon: TrendingUp },
-  { id: 'pedidos', name: 'Pedidos', icon: ShoppingBag },
-  { id: 'produtos', name: 'Produtos', icon: Package },
-  { id: 'funcionarios', name: 'Funcionários', icon: UserCog },
-  { id: 'logs', name: 'Log de Atividades', icon: Activity },
-  { id: 'faq', name: 'FAQ', icon: HelpCircle },
+  { id: '/dashboard', name: 'Dashboard', icon: Home },
+  { id: '/clientes', name: 'Clientes', icon: Users },
+  { id: '/oportunidades', name: 'Oportunidades', icon: TrendingUp },
+  { id: '/pedidos', name: 'Pedidos', icon: ShoppingBag },
+  { id: '/produtos', name: 'Produtos', icon: Package },
+  { id: '/funcionarios', name: 'Funcionários', icon: UserCog },
+  { id: '/logs', name: 'Log de Atividades', icon: Activity },
+  { id: '/faq', name: 'FAQ', icon: HelpCircle },
 ];
 
-export const Sidebar = ({ activeTab, onTabChange }: SidebarProps) => {
+export const Sidebar = () => {
   const [isCollapsed, setIsCollapsed] = useState(false);
-  const { logout, currentUser } = useApp();
+  const { logout } = useApp();
+  
+  const navigate = useNavigate(); // Hook para mudar de página
+  const location = useLocation(); // Hook para saber onde estamos
 
   return (
     <div className={cn(
-      "bg-sidebar border-r border-sidebar-border transition-all duration-300 flex flex-col h-full",
-      isCollapsed ? "w-16" : "w-64"
+      "bg-sidebar border-r border-sidebar-border transition-all duration-300 flex flex-col h-full shadow-xl z-20",
+      isCollapsed ? "w-[80px]" : "w-[280px]"
     )}>
       {/* Header */}
-      <div className="p-4 border-b border-sidebar-border">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-8 h-8 bg-sidebar-primary rounded-lg flex items-center justify-center">
-              <Gem className="w-5 h-5 text-sidebar-primary-foreground" />
+      <div className="h-20 flex items-center justify-between px-6 border-b border-sidebar-border/50 bg-gradient-to-r from-sidebar to-sidebar-accent/5">
+        {!isCollapsed && (
+          <div className="flex items-center gap-3 animate-fade-in">
+            <div className="h-10 w-10 bg-gradient-to-tr from-accent-gold to-yellow-600 rounded-lg flex items-center justify-center shadow-lg shadow-accent-gold/20">
+              <Gem className="text-white h-6 w-6" />
             </div>
-            {!isCollapsed && (
-              <div>
-                <h1 className="font-bold text-sidebar-primary text-lg">Landry</h1>
-                <p className="text-xs text-sidebar-foreground/70">Joias Premium</p>
-              </div>
-            )}
+            <div>
+              <h1 className="font-bold text-lg text-sidebar-foreground tracking-tight">Landry Joias</h1>
+              <p className="text-[10px] text-accent-gold font-medium tracking-widest uppercase">Premium CRM</p>
+            </div>
           </div>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => setIsCollapsed(!isCollapsed)}
-            className="text-sidebar-foreground hover:bg-sidebar-accent"
-          >
-            {isCollapsed ? <Menu className="w-4 h-4" /> : <X className="w-4 h-4" />}
-          </Button>
-        </div>
+        )}
+        <Button
+          variant="ghost"
+          size="icon"
+          className="text-sidebar-foreground/70 hover:text-accent-gold hover:bg-sidebar-accent transition-colors"
+          onClick={() => setIsCollapsed(!isCollapsed)}
+        >
+          {isCollapsed ? <Menu className="h-5 w-5" /> : <X className="h-5 w-5" />}
+        </Button>
       </div>
 
-      {/* User info */}
-      {!isCollapsed && currentUser && (
-        <div className="px-4 py-3 border-b border-sidebar-border">
-          <p className="text-xs text-sidebar-foreground/70">Logado como</p>
-          <p className="text-sm font-medium text-sidebar-foreground truncate">{currentUser.email}</p>
-        </div>
-      )}
-
       {/* Navigation */}
-      <nav className="flex-1 p-2">
-        <ul className="space-y-1">
+      <nav className="flex-1 overflow-y-auto py-6 px-4 custom-scrollbar">
+        <ul className="space-y-2">
           {navigation.map((item) => {
             const Icon = item.icon;
-            const isActive = activeTab === item.id;
-            
+            // Verifica se a URL atual contém o ID do item
+            const isActive = location.pathname.includes(item.id); 
+
             return (
               <li key={item.id}>
                 <Button
-                  variant={isActive ? "default" : "ghost"}
-                  size="sm"
-                  onClick={() => onTabChange(item.id)}
+                  variant="ghost"
+                  onClick={() => navigate(item.id)} // Muda a URL
                   className={cn(
-                    "w-full justify-start gap-3 h-10 transition-smooth",
+                    "w-full justify-start gap-3 h-12 transition-all duration-300 relative overflow-hidden group",
                     isActive 
-                      ? "bg-sidebar-primary text-sidebar-primary-foreground shadow-sm" 
-                      : "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
-                    isCollapsed && "justify-center px-2"
+                      ? "bg-sidebar-primary text-sidebar-primary-foreground shadow-md font-medium" 
+                      : "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground hover:pl-6",
+                    isCollapsed && "justify-center px-2 hover:pl-2"
                   )}
                 >
-                  <Icon className={cn("w-4 h-4", isCollapsed && "w-5 h-5")} />
-                  {!isCollapsed && <span className="font-medium">{item.name}</span>}
+                  {isActive && <div className="absolute left-0 top-0 bottom-0 w-1 bg-accent-gold" />}
+                  <Icon className={cn("w-5 h-5 transition-colors", isActive ? "text-sidebar-primary-foreground" : "text-sidebar-foreground/70 group-hover:text-accent-gold")} />
+                  {!isCollapsed && <span className="text-sm">{item.name}</span>}
                 </Button>
               </li>
             );
@@ -106,25 +87,21 @@ export const Sidebar = ({ activeTab, onTabChange }: SidebarProps) => {
       </nav>
 
       {/* Footer */}
-      <div className="p-4 border-t border-sidebar-border space-y-2">
+      <div className="p-4 border-t border-sidebar-border bg-sidebar-background/50">
         <Button
           variant="ghost"
-          size="sm"
-          onClick={logout}
+          onClick={() => {
+            logout();
+            navigate('/login');
+          }}
           className={cn(
-            "w-full justify-start gap-3 h-10 text-destructive hover:bg-destructive/10 hover:text-destructive",
+            "w-full justify-start gap-3 h-12 text-red-400 hover:text-red-500 hover:bg-red-500/10 transition-colors group",
             isCollapsed && "justify-center px-2"
           )}
         >
-          <LogOut className={cn("w-4 h-4", isCollapsed && "w-5 h-5")} />
-          {!isCollapsed && <span className="font-medium">Sair</span>}
+          <LogOut className="w-5 h-5 group-hover:scale-110 transition-transform" />
+          {!isCollapsed && <span className="font-medium">Sair do Sistema</span>}
         </Button>
-        {!isCollapsed && (
-          <div className="text-xs text-sidebar-foreground/60 text-center">
-            <p>CRM Landry Joias</p>
-            <p>v1.0.0</p>
-          </div>
-        )}
       </div>
     </div>
   );

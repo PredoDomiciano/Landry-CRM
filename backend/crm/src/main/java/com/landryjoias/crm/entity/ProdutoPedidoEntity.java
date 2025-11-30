@@ -5,7 +5,7 @@ import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
-import jakarta.annotation.Nonnull;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 
 @Table(name = "Produtos_Pedidos")
 @Entity
@@ -17,23 +17,25 @@ public class ProdutoPedidoEntity {
     @EmbeddedId
     private ProdutoPedidoId id;
 
+    @JsonIgnore
     @ManyToOne
     @MapsId("idPedido")
-    @JoinColumn(name = "id_pedido")
+    @JoinColumn(name = "idPedido")
     private PedidosEntity pedido;
 
     @ManyToOne
     @MapsId("idProduto")
-    @JoinColumn(name = "id_produto")
+    @JoinColumn(name = "idProduto")
     private ProdutosEntity produto;
 
     @Column(nullable = false)
     private Integer quantidade;
 
     private String pedra;
-    @Nonnull
-    private String tamanho;
-    @Nonnull
-    private float valor;
 
+    @Column(nullable = false)
+    private String tamanho; // @Nonnull removido
+
+    @Column(nullable = false)
+    private float valor; // @Nonnull removido
 }

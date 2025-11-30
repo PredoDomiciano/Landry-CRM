@@ -5,13 +5,14 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
-import { useToast } from '@/hooks/use-toast';
-import { Produto } from '@/data/mockData';
+import { useToast } from '@/hooks/use-toast'; 
+import type { Produto } from '@/types/api'; 
 
 interface ProdutoFormProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onSubmit: (produto: Omit<Produto, 'idProduto'>) => void;
+  // Ajuste: Aceita qualquer objeto parcial de Produto
+  onSubmit: (produto: any) => Promise<void>; 
 }
 
 export const ProdutoForm = ({ open, onOpenChange, onSubmit }: ProdutoFormProps) => {
@@ -24,28 +25,32 @@ export const ProdutoForm = ({ open, onOpenChange, onSubmit }: ProdutoFormProps) 
 
     const formData = new FormData(e.currentTarget);
     
-    const produto: Omit<Produto, 'idProduto'> = {
+    // --- CONVERSÃO CRÍTICA PARA O JAVA ---
+    const produtoPayload = {
       nome: formData.get('nome') as string,
       descricao: formData.get('descricao') as string,
-      tipo: formData.get('tipo') as 'anel' | 'colar' | 'brinco' | 'pulseira' | 'conjunto',
-      valor: parseFloat(formData.get('valor') as string),
-      estoque: parseInt(formData.get('estoque') as string),
-      material: formData.get('material') as string,
-      tamanho: formData.get('tamanho') as string
+      // Java espera int (1, 2, 3), não string "anel"
+      tipo: parseInt(formData.get('tipo') as string), 
+      // Java espera float/double
+      valor: parseFloat((formData.get('valor') as string).replace(',', '.')), 
+      quantidadeEstoque: parseInt(formData.get('estoque') as string),
+      // Java espera "Material" com M maiúsculo
+      Material: formData.get('material') as string, 
+      tamanho: parseFloat((formData.get('tamanho') as string) || '0'), 
     };
 
     try {
-      onSubmit(produto);
+      await onSubmit(produtoPayload);
       toast({
-        title: "Produto adicionado",
-        description: `${produto.nome} foi adicionado com sucesso.`
+        title: "Sucesso!",
+        description: "Produto cadastrado no sistema."
       });
       onOpenChange(false);
-      e.currentTarget.reset();
     } catch (error) {
+      console.error(error);
       toast({
         title: "Erro",
-        description: "Não foi possível adicionar o produto.",
+        description: "Verifique se os valores numéricos estão corretos.",
         variant: "destructive"
       });
     } finally {
@@ -55,112 +60,64 @@ export const ProdutoForm = ({ open, onOpenChange, onSubmit }: ProdutoFormProps) 
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[500px]">
+      <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Novo Produto</DialogTitle>
-          <DialogDescription>
-            Adicione um novo produto ao catálogo
-          </DialogDescription>
+          <DialogDescription>Preencha os dados da jóia.</DialogDescription>
         </DialogHeader>
-
         <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="nome">Nome do Produto *</Label>
-            <Input 
-              id="nome" 
-              name="nome" 
-              placeholder="Ex: Anel de Ouro 18k"
-              required 
-            />
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="descricao">Descrição</Label>
-            <Textarea 
-              id="descricao" 
-              name="descricao" 
-              placeholder="Descrição detalhada do produto..."
-              rows={3}
-            />
-          </div>
-
+          
           <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2 col-span-2">
+              <Label htmlFor="nome">Nome *</Label>
+              <Input id="nome" name="nome" required />
+            </div>
+
+            <div className="space-y-2 col-span-2">
+              <Label htmlFor="descricao">Descrição</Label>
+              <Textarea id="descricao" name="descricao" required />
+            </div>
+
             <div className="space-y-2">
               <Label htmlFor="tipo">Tipo *</Label>
               <Select name="tipo" required>
-                <SelectTrigger>
-                  <SelectValue placeholder="Selecione o tipo" />
-                </SelectTrigger>
+                <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="anel">Anel</SelectItem>
-                  <SelectItem value="colar">Colar</SelectItem>
-                  <SelectItem value="brinco">Brinco</SelectItem>
-                  <SelectItem value="pulseira">Pulseira</SelectItem>
-                  <SelectItem value="conjunto">Conjunto</SelectItem>
+                  {/* Values devem ser números como string */}
+                  <SelectItem value="1">Anel</SelectItem>
+                  <SelectItem value="2">Colar</SelectItem>
+                  <SelectItem value="3">Brinco</SelectItem>
+                  <SelectItem value="4">Pulseira</SelectItem>
+                  <SelectItem value="5">Relógio</SelectItem>
                 </SelectContent>
               </Select>
             </div>
 
             <div className="space-y-2">
               <Label htmlFor="material">Material *</Label>
-              <Input 
-                id="material" 
-                name="material" 
-                placeholder="Ex: Ouro 18k"
-                required 
-              />
+              <Input id="material" name="material" placeholder="Ex: Ouro 18k" required />
             </div>
-          </div>
 
-          <div className="grid grid-cols-3 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="valor">Valor (R$) *</Label>
-              <Input 
-                id="valor" 
-                name="valor" 
-                type="number"
-                step="0.01"
-                placeholder="0,00"
-                required 
-              />
+              <Label htmlFor="valor">Preço (R$) *</Label>
+              <Input id="valor" name="valor" type="number" step="0.01" required />
             </div>
 
             <div className="space-y-2">
               <Label htmlFor="estoque">Estoque *</Label>
-              <Input 
-                id="estoque" 
-                name="estoque" 
-                type="number"
-                placeholder="0"
-                required 
-              />
+              <Input id="estoque" name="estoque" type="number" required />
             </div>
 
             <div className="space-y-2">
               <Label htmlFor="tamanho">Tamanho</Label>
-              <Input 
-                id="tamanho" 
-                name="tamanho" 
-                placeholder="Ex: P, M, G, 16, 18..."
-              />
+              <Input id="tamanho" name="tamanho" type="number" step="0.1" defaultValue="0" />
             </div>
           </div>
 
-          <DialogFooter className="gap-2">
-            <Button 
-              type="button" 
-              variant="outline" 
-              onClick={() => onOpenChange(false)}
-              disabled={loading}
-            >
-              Cancelar
-            </Button>
-            <Button 
-              type="submit" 
-              className="bg-accent-gold text-accent-gold-foreground hover:bg-accent-gold/90"
-              disabled={loading}
-            >
-              {loading ? 'Salvando...' : 'Salvar Produto'}
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Cancelar</Button>
+            <Button type="submit" disabled={loading} className="bg-accent-gold text-white">
+              {loading ? 'Salvando...' : 'Salvar'}
             </Button>
           </DialogFooter>
         </form>
