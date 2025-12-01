@@ -12,7 +12,7 @@ import java.util.Collections;
 
 @RestController
 @RequestMapping("/auth")
-@RequiredArgsConstructor // <--- Injeção de dependência moderna (Lombok)
+@RequiredArgsConstructor
 public class AuthController {
 
     private final UsuarioRepository repository;
@@ -24,12 +24,11 @@ public class AuthController {
         UsuarioEntity usuario = repository.findByEmail(dados.getEmail())
                 .orElse(null);
 
-        // 2. Verifica senha (em texto puro por enquanto, conforme teu projeto)
+        // 2. Verifica senha (em texto puro por enquanto)
         if (usuario != null && usuario.getSenha().equals(dados.getSenha())) {
-            
-            // 3. AQUI ESTÁ O USO OBRIGATÓRIO DO TOKEN SERVICE
+            // 3. Gera o token JWT
             String token = tokenService.gerarToken(usuario);
-            
+
             // 4. Retorna o token para o frontend
             return ResponseEntity.ok(Collections.singletonMap("token", token));
         }
