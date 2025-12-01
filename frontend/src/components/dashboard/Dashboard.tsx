@@ -1,6 +1,6 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { useApp } from '@/contexts/AppContext';
+import { useApp } from '@/contexts/AppContext'; // Importação do contexto
 import { 
   TrendingUp, 
   Users, 
@@ -20,60 +20,78 @@ import { ESTAGIO_FUNIL_LABELS, STATUS_PEDIDO_LABELS } from '@/types/api';
 const COLORS = ['#eab308', '#3b82f6', '#10b981', '#ef4444', '#8b5cf6'];
 
 export const Dashboard = () => {
-  // CONEXÃO COM DADOS REAIS
+  // CONEXÃO COM DADOS REAIS DO CONTEXTO
   const { clientes, pedidos, produtos, oportunidades, funcionarios } = useApp();
 
   // --- CÁLCULOS KPI (Indicadores Chave de Desempenho) ---
   
-  const totalVendas = pedidos.reduce((acc, p) => acc + (p.valorTotal || 0), 0);
+  // Receita Total (Soma dos pedidos confirmados/pagos/entregues/enviados)
+  // Ignoramos Cancelados e Pendentes para receita realizada, mas depende da regra de negócio.
+  // Aqui somamos tudo que não é cancelado para ter uma visão geral.
+  const totalVendas = pedidos
+    .filter(p => p.status !== 'CANCELADO')
+    .reduce((acc, p) => acc + (p.valorTotal || 0), 0);
   
   const totalClientes = clientes.length;
   
-  // Consideramos oportunidades "Ativas" aquelas que não estão Fechadas ou Perdidas
+  // Oportunidades "Ativas" (Não Fechadas nem Perdidas)
   const oportunidadesAtivas = oportunidades.filter(
     o => o.estagioFunil !== 'FECHADA' && o.estagioFunil !== 'PERDIDA'
   ).length;
 
+  // Valor em Pipeline (Soma das oportunidades ativas)
   const valorEmPipeline = oportunidades
     .filter(o => o.estagioFunil !== 'FECHADA' && o.estagioFunil !== 'PERDIDA')
     .reduce((acc, o) => acc + (o.valorEstimado || 0), 0);
 
-  const estoqueBaixo = produtos.filter(p => p.quantidadeEstoque < 5).length;
+  // Alertas de Estoque
+  const estoqueBaixo = produtos.filter(p => p.quantidadeEstoque > 0 && p.quantidadeEstoque < 5).length;
   const produtosSemEstoque = produtos.filter(p => p.quantidadeEstoque === 0).length;
 
   // --- PREPARAÇÃO DE DADOS PARA GRÁFICOS ---
 
-  // 1. Gráfico de Vendas por Mês (Simulação baseada na data do pedido)
-  // Como o Java retorna data "YYYY-MM-DD", vamos agrupar.
-  const dadosVendasMensais = pedidos.reduce((acc: any[], pedido) => {
-    const dataObj = new Date(pedido.data);
-    const mes = dataObj.toLocaleString('pt-BR', { month: 'short' }); // "jan", "fev"
-    
-    const existente = acc.find(item => item.name === mes);
-    if (existente) {
-      existente.total += pedido.valorTotal;
-    } else {
-      acc.push({ name: mes, total: pedido.valorTotal });
-    }
-    return acc;
-  }, []);
-  // Se não houver dados, mostra mock para o gráfico não quebrar visualmente
-  const chartData = dadosVendasMensais.length > 0 ? dadosVendasMensais : [
+  // 1. Gráfico de Vendas por Mês
+  // Agrupa pedidos por mês (ex: "jan", "fev")
+  const vendasPorMes = pedidos
+    .filter(p => p.status !== 'CANCELADO')
+    .reduce((acc: Record<string, number>, pedido) => {
+      // Converte data YYYY-MM-DD para nome do mês
+      const dataObj = new Date(pedido.data);
+      if (!isNaN(dataObj.getTime())) {
+          const mes = dataObj.toLocaleString('pt-BR', { month: 'short' }); // "jan", "fev"
+          // Capitaliza a primeira letra (Jan, Fev)
+          const mesFormatado = mes.charAt(0).toUpperCase() + mes.slice(1);
+          
+          acc[mesFormatado] = (acc[mesFormatado] || 0) + pedido.valorTotal;
+      }
+      return acc;
+    }, {});
+
+  // Transforma o objeto em array para o Recharts
+  // Define uma ordem fixa de meses se quiser, ou usa a ordem que aparecer
+  const chartData = Object.keys(vendasPorMes).map(mes => ({
+    name: mes,
+    total: vendasPorMes[mes]
+  }));
+
+  // Se não houver dados, mostra mock para o gráfico não ficar vazio
+  const finalChartData = chartData.length > 0 ? chartData : [
     { name: 'Jan', total: 0 }, { name: 'Fev', total: 0 }, { name: 'Mar', total: 0 }
   ];
 
-  // 2. Distribuição do Funil
-  const dadosFunil = oportunidades.reduce((acc: any[], op) => {
+  // 2. Distribuição do Funil (Gráfico de Pizza)
+  const funilCount = oportunidades.reduce((acc: Record<string, number>, op) => {
     const label = ESTAGIO_FUNIL_LABELS[op.estagioFunil] || op.estagioFunil;
-    const existente = acc.find(item => item.name === label);
-    if (existente) {
-      existente.value += 1;
-    } else {
-      acc.push({ name: label, value: 1 });
-    }
+    acc[label] = (acc[label] || 0) + 1;
     return acc;
-  }, []);
-  const pieData = dadosFunil.length > 0 ? dadosFunil : [{ name: 'Sem dados', value: 1 }];
+  }, {});
+
+  const pieData = Object.keys(funilCount).map(key => ({
+    name: key,
+    value: funilCount[key]
+  }));
+
+  const finalPieData = pieData.length > 0 ? pieData : [{ name: 'Sem dados', value: 1 }];
 
   return (
     <div className="p-6 space-y-6 animate-fade-in pb-20">
@@ -94,8 +112,8 @@ export const Dashboard = () => {
             <div className="text-2xl font-bold text-slate-800">R$ {totalVendas.toLocaleString('pt-BR')}</div>
             <div className="flex items-center text-xs text-green-600 mt-1">
               <ArrowUpRight className="w-3 h-3 mr-1" />
-              <span className="font-medium">+12%</span>
-              <span className="text-muted-foreground ml-1">vs. mês anterior</span>
+              <span className="font-medium">Atualizado</span>
+              <span className="text-muted-foreground ml-1">em tempo real</span>
             </div>
           </CardContent>
         </Card>
@@ -137,7 +155,7 @@ export const Dashboard = () => {
           <CardContent>
             <div className="text-2xl font-bold text-red-600">{estoqueBaixo + produtosSemEstoque}</div>
             <p className="text-xs text-muted-foreground mt-1">
-              Produtos com estoque crítico
+              {produtosSemEstoque} esgotados, {estoqueBaixo} baixo estoque
             </p>
           </CardContent>
         </Card>
@@ -150,12 +168,12 @@ export const Dashboard = () => {
         <Card className="lg:col-span-4 shadow-md">
           <CardHeader>
             <CardTitle>Desempenho de Vendas</CardTitle>
-            <CardDescription>Receita mensal acumulada no ano corrente</CardDescription>
+            <CardDescription>Receita mensal acumulada (exclui cancelados)</CardDescription>
           </CardHeader>
           <CardContent>
             <div className="h-[300px] w-full">
               <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={chartData} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
+                <LineChart data={finalChartData} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
                   <XAxis dataKey="name" stroke="#6b7280" fontSize={12} tickLine={false} axisLine={false} />
                   <YAxis 
@@ -194,7 +212,7 @@ export const Dashboard = () => {
               <ResponsiveContainer width="100%" height="100%">
                 <PieChart>
                   <Pie
-                    data={pieData}
+                    data={finalPieData}
                     cx="50%"
                     cy="50%"
                     innerRadius={60}
@@ -202,7 +220,7 @@ export const Dashboard = () => {
                     paddingAngle={5}
                     dataKey="value"
                   >
-                    {pieData.map((entry, index) => (
+                    {finalPieData.map((entry, index) => (
                       <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                     ))}
                   </Pie>
@@ -244,7 +262,11 @@ export const Dashboard = () => {
               {pedidos.length === 0 ? (
                 <div className="text-center py-6 text-muted-foreground">Nenhum pedido encontrado.</div>
               ) : (
-                pedidos.slice(0, 5).map((pedido) => (
+                // Ordenar por data (mais recente) e pegar top 5
+                [...pedidos]
+                  .sort((a, b) => new Date(b.data).getTime() - new Date(a.data).getTime())
+                  .slice(0, 5)
+                  .map((pedido) => (
                   <div key={pedido.idPedido} className="flex items-center justify-between p-3 rounded-lg bg-slate-50 border border-slate-100 transition-colors hover:bg-slate-100">
                     <div className="flex items-center gap-3">
                       <div className="h-10 w-10 rounded-full bg-yellow-100 flex items-center justify-center">
@@ -259,7 +281,7 @@ export const Dashboard = () => {
                     </div>
                     <div className="text-right">
                       <p className="font-bold text-sm text-slate-800">
-                        R$ {pedido.valorTotal ? pedido.valorTotal.toLocaleString('pt-BR') : '0,00'}
+                        R$ {pedido.valorTotal ? pedido.valorTotal.toLocaleString('pt-BR', {minimumFractionDigits: 2}) : '0,00'}
                       </p>
                       <Badge 
                         variant={pedido.status === 'CONFIRMADO' ? 'default' : 'secondary'}
@@ -296,20 +318,20 @@ export const Dashboard = () => {
                 // Ordenar por valor (mais caros primeiro) e pegar top 5
                 [...produtos].sort((a, b) => b.valor - a.valor).slice(0, 5).map((prod) => (
                   <div key={prod.idProduto} className="flex items-center gap-4 p-2 hover:bg-slate-50 rounded-md transition-colors">
-                     <div className="h-10 w-10 bg-purple-100 rounded-lg flex items-center justify-center shrink-0">
-                        <Package className="w-5 h-5 text-purple-600" />
-                     </div>
-                     <div className="flex-1 min-w-0">
+                      <div className="h-10 w-10 bg-purple-100 rounded-lg flex items-center justify-center shrink-0">
+                         <Package className="w-5 h-5 text-purple-600" />
+                      </div>
+                      <div className="flex-1 min-w-0">
                         <p className="text-sm font-medium text-slate-900 truncate">{prod.nome}</p>
                         <div className="flex items-center gap-2 text-xs text-muted-foreground">
                           <span>Estoque: <span className={prod.quantidadeEstoque < 5 ? "text-red-500 font-bold" : ""}>{prod.quantidadeEstoque}</span></span>
                           <span>•</span>
-                          <span>{prod.Material}</span>
+                          <span>{prod.material}</span>
                         </div>
-                     </div>
-                     <div className="font-bold text-sm text-slate-700 whitespace-nowrap">
-                        R$ {prod.valor.toLocaleString('pt-BR')}
-                     </div>
+                      </div>
+                      <div className="font-bold text-sm text-slate-700 whitespace-nowrap">
+                        R$ {prod.valor.toLocaleString('pt-BR', {minimumFractionDigits: 2})}
+                      </div>
                   </div>
                 ))
               )}

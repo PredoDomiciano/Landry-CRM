@@ -13,23 +13,23 @@ import com.fasterxml.jackson.annotation.JsonIgnore;
 @Getter
 @Setter
 @AllArgsConstructor
-@NoArgsConstructor // <--- Essencial
+@NoArgsConstructor
 public class UsuarioEntity {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Integer idUsuario;
-
+    
     @Column(nullable = false, unique = true)
     private String email;
-
+    
     @Column(nullable = false)
     private String senha;
-
+    
     // Aqui definimos o poder de acesso ao sistema
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, name = "nivelAcesso")
-    private NivelAcesso nivelAcesso;
-
+    private NivelAcesso nivelAcesso; 
+    
     @OneToOne(cascade = CascadeType.ALL)
     @JoinColumn(name = "idContato")
     private ContatosEntity contato;

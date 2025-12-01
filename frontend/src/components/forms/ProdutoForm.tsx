@@ -6,48 +6,110 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast'; 
+import { Produto } from '@/types/api'; 
+import { TAMANHO_LABELS, MATERIAL_LABELS, PEDRA_LABELS } from '@/types/api';
+
+// --- SEPARAÇÃO DAS CATEGORIAS DE TAMANHO ---
+const MATERIAIS_KEYS = ['PRATA_925'];
+const PEDRAS_KEYS = ['ZIRCONIA', 'CRISTAL', 'SEM_PEDRA'];
+
+const ANEIS_KEYS = [
+  'ARO_12', 'ARO_13', 'ARO_14', 'ARO_15', 'ARO_16', 'ARO_17', 'ARO_18', 'ARO_19', 
+  'ARO_20', 'ARO_21', 'ARO_22', 'ARO_23', 'ARO_24', 'ARO_25', 'ARO_26'
+];
+
+const COLARES_KEYS = ['CM_40', 'CM_45', 'CM_50', 'CM_60', 'CM_70'];
+const ARGOLAS_KEYS = ['MM_8', 'MM_10', 'MM_12']; // Geralmente para brincos
+const GERAIS_KEYS = ['UNICO', 'PERSONALIZADO'];
 
 interface ProdutoFormProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  // Ajuste: Aceita qualquer objeto parcial de Produto
   onSubmit: (produto: any) => Promise<void>;
-  initialData?: any; // Adicionado para edição
+  initialData?: Produto | null; 
 }
 
 export const ProdutoForm = ({ open, onOpenChange, onSubmit, initialData }: ProdutoFormProps) => {
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
 
-  // States para controlar os inputs (necessário para edição)
+  // States
   const [nome, setNome] = useState('');
   const [descricao, setDescricao] = useState('');
-  const [tipo, setTipo] = useState('');
-  const [material, setMaterial] = useState('');
+  const [tipo, setTipo] = useState(''); 
   const [valor, setValor] = useState('');
   const [estoque, setEstoque] = useState('');
-  const [tamanho, setTamanho] = useState('0');
+  const [material, setMaterial] = useState('PRATA_925');
+  const [pedra, setPedra] = useState('SEM_PEDRA');
+  const [tamanho, setTamanho] = useState('UNICO');
+  const [tamanhoPersonalizado, setTamanhoPersonalizado] = useState('');
 
-  // Preenche o formulário quando initialData mudar ou o modal abrir
+  // Lógica para filtrar tamanhos baseado no Tipo
+  const getTamanhosDisponiveis = () => {
+      switch(tipo) {
+          case '1': // Anel
+              return [...ANEIS_KEYS, ...GERAIS_KEYS];
+          case '2': // Colar
+              return [...COLARES_KEYS, ...GERAIS_KEYS];
+          case '3': // Brinco (pode ter tamanho de argola ou ser único)
+              return [...ARGOLAS_KEYS, ...GERAIS_KEYS];
+          default: // Pulseira (4), Relógio (5) ou outros
+              return GERAIS_KEYS; // Apenas Único ou Personalizado
+      }
+  };
+
+  const tamanhosDisponiveis = getTamanhosDisponiveis();
+
+  // Resetar o tamanho se mudar o tipo (para evitar inconsistências, ex: Colar com Aro 12)
+  useEffect(() => {
+     if (open && !initialData) {
+         setTamanho('UNICO'); 
+     }
+     // Se estivermos editando, não resetamos imediatamente para não perder o valor original
+     // A menos que o usuário mude o tipo manualmente.
+  }, [tipo]);
+
+  // Carregar dados na Edição
   useEffect(() => {
     if (open) {
       if (initialData) {
         setNome(initialData.nome || '');
         setDescricao(initialData.descricao || '');
         setTipo(initialData.tipo ? initialData.tipo.toString() : '');
-        setMaterial(initialData.material || '');
         setValor(initialData.valor !== undefined ? initialData.valor.toString() : '');
         setEstoque(initialData.quantidadeEstoque !== undefined ? initialData.quantidadeEstoque.toString() : '');
-        setTamanho(initialData.tamanho !== undefined ? initialData.tamanho.toString() : '0');
+        setMaterial(typeof initialData.material === 'string' ? initialData.material : 'PRATA_925');
+        setPedra(typeof initialData.tipoPedra === 'string' ? initialData.tipoPedra : 'SEM_PEDRA');
+        
+        const tam = typeof initialData.tamanho === 'string' ? initialData.tamanho : 'UNICO';
+        
+        // Verifica se o tamanho salvo pertence à lista (se não, joga para personalizado)
+        const todasAsChaves = [...ANEIS_KEYS, ...COLARES_KEYS, ...ARGOLAS_KEYS, ...GERAIS_KEYS];
+        
+        if (todasAsChaves.includes(tam)) {
+            setTamanho(tam);
+            setTamanhoPersonalizado('');
+        } else {
+            setTamanho('PERSONALIZADO');
+            setTamanhoPersonalizado(tam);
+        }
+        
+        if (initialData.tamanhoPersonalizado) {
+            setTamanho('PERSONALIZADO');
+            setTamanhoPersonalizado(initialData.tamanhoPersonalizado);
+        }
+
       } else {
-        // Limpa o formulário para cadastro novo
+        // Limpa formulário
         setNome('');
         setDescricao('');
-        setTipo('');
-        setMaterial('');
+        setTipo(''); 
         setValor('');
         setEstoque('');
-        setTamanho('0');
+        setMaterial('PRATA_925');
+        setPedra('SEM_PEDRA');
+        setTamanho('UNICO');
+        setTamanhoPersonalizado('');
       }
     }
   }, [initialData, open]);
@@ -56,36 +118,26 @@ export const ProdutoForm = ({ open, onOpenChange, onSubmit, initialData }: Produ
     e.preventDefault();
     setLoading(true);
 
-    const formData = new FormData(e.currentTarget);
-    
-    // --- CONVERSÃO CRÍTICA PARA O JAVA ---
+    const tamanhoFinal = tamanho === 'PERSONALIZADO' ? 'PERSONALIZADO' : tamanho;
+
     const produtoPayload = {
-      nome: formData.get('nome') as string,
-      descricao: formData.get('descricao') as string,
-      // Java espera int (1, 2, 3), não string "anel"
-      tipo: parseInt(formData.get('tipo') as string), 
-      // Java espera float/double
-      valor: parseFloat((formData.get('valor') as string).replace(',', '.')), 
-      quantidadeEstoque: parseInt(formData.get('estoque') as string),
-      // Java espera "Material" com M maiúsculo
-      material: formData.get('material') as string, 
-      tamanho: parseFloat((formData.get('tamanho') as string) || '0'), 
+      nome,
+      descricao,
+      tipo: parseInt(tipo), 
+      valor: parseFloat(valor.replace(',', '.')), 
+      quantidadeEstoque: parseInt(estoque),
+      material, 
+      tipoPedra: pedra,
+      tamanho: tamanhoFinal,
+      tamanhoPersonalizado: tamanho === 'PERSONALIZADO' ? tamanhoPersonalizado : null
     };
 
     try {
       await onSubmit(produtoPayload);
-      toast({
-        title: "Sucesso!",
-        description: initialData ? "Produto atualizado." : "Produto cadastrado no sistema."
-      });
-      // Apenas fechamos se o pai não fechar, mas geralmente o pai fecha no onSubmit
+      // Não fecha o modal aqui, o pai controla isso
     } catch (error) {
       console.error(error);
-      toast({
-        title: "Erro",
-        description: "Verifique se os valores numéricos estão corretos.",
-        variant: "destructive"
-      });
+      toast({ title: "Erro", description: "Verifique os dados.", variant: "destructive" });
     } finally {
       setLoading(false);
     }
@@ -103,95 +155,99 @@ export const ProdutoForm = ({ open, onOpenChange, onSubmit, initialData }: Produ
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2 col-span-2">
               <Label htmlFor="nome">Nome *</Label>
-              <Input 
-                id="nome" 
-                name="nome" 
-                required 
-                value={nome} 
-                onChange={(e) => setNome(e.target.value)} 
-              />
+              <Input id="nome" required value={nome} onChange={(e) => setNome(e.target.value)} />
             </div>
 
             <div className="space-y-2 col-span-2">
               <Label htmlFor="descricao">Descrição</Label>
-              <Textarea 
-                id="descricao" 
-                name="descricao" 
-                required 
-                value={descricao}
-                onChange={(e) => setDescricao(e.target.value)}
-              />
+              <Textarea id="descricao" required value={descricao} onChange={(e) => setDescricao(e.target.value)} />
             </div>
 
+            {/* CATEGORIA - Removido "Outros" implícito, apenas opções válidas */}
             <div className="space-y-2">
-              <Label htmlFor="tipo">Tipo *</Label>
+              <Label htmlFor="tipo">Categoria *</Label>
               <Select name="tipo" required value={tipo} onValueChange={setTipo}>
                 <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
                 <SelectContent>
-                  {/* Values devem ser números como string */}
                   <SelectItem value="1">Anel</SelectItem>
                   <SelectItem value="2">Colar</SelectItem>
                   <SelectItem value="3">Brinco</SelectItem>
                   <SelectItem value="4">Pulseira</SelectItem>
                   <SelectItem value="5">Relógio</SelectItem>
+                  {/* Removido Conjunto/Outros para forçar especificidade */}
                 </SelectContent>
               </Select>
             </div>
 
             <div className="space-y-2">
               <Label htmlFor="material">Material *</Label>
-              <Input 
-                id="material" 
-                name="material" 
-                placeholder="Ex: Ouro 18k" 
-                required 
-                value={material}
-                onChange={(e) => setMaterial(e.target.value)}
-              />
+              <Select value={material} onValueChange={setMaterial}>
+                <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
+                <SelectContent>
+                  {MATERIAIS_KEYS.map((key) => (
+                    <SelectItem key={key} value={key}>{MATERIAL_LABELS[key] || key}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
 
             <div className="space-y-2">
+              <Label htmlFor="pedra">Pedra *</Label>
+              <Select value={pedra} onValueChange={setPedra}>
+                <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
+                <SelectContent>
+                  {PEDRAS_KEYS.map((key) => (
+                    <SelectItem key={key} value={key}>{PEDRA_LABELS[key] || key}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* TAMANHO - Lista Dinâmica baseada no Tipo */}
+            <div className="space-y-2">
+              <Label htmlFor="tamanho">Tamanho *</Label>
+              <Select value={tamanho} onValueChange={setTamanho} disabled={!tipo}>
+                <SelectTrigger>
+                    <SelectValue placeholder={!tipo ? "Selecione a Categoria primeiro" : "Selecione o tamanho"} />
+                </SelectTrigger>
+                <SelectContent>
+                  {tamanhosDisponiveis.map((key) => (
+                    <SelectItem key={key} value={key}>
+                      {TAMANHO_LABELS[key] || key}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {tamanho === 'PERSONALIZADO' && (
+               <div className="space-y-2 col-span-2 animate-fade-in">
+                 <Label htmlFor="tamPersonalizado">Especifique o Tamanho</Label>
+                 <Input 
+                   id="tamPersonalizado" 
+                   value={tamanhoPersonalizado} 
+                   onChange={(e) => setTamanhoPersonalizado(e.target.value)} 
+                   placeholder="Ex: 18cm com extensor"
+                   required
+                 />
+               </div>
+            )}
+
+            <div className="space-y-2">
               <Label htmlFor="valor">Preço (R$) *</Label>
-              <Input 
-                id="valor" 
-                name="valor" 
-                type="number" 
-                step="0.01" 
-                required 
-                value={valor}
-                onChange={(e) => setValor(e.target.value)}
-              />
+              <Input id="valor" type="number" step="0.01" required value={valor} onChange={(e) => setValor(e.target.value)} />
             </div>
 
             <div className="space-y-2">
               <Label htmlFor="estoque">Estoque *</Label>
-              <Input 
-                id="estoque" 
-                name="estoque" 
-                type="number" 
-                required 
-                value={estoque}
-                onChange={(e) => setEstoque(e.target.value)}
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="tamanho">Tamanho</Label>
-              <Input 
-                id="tamanho" 
-                name="tamanho" 
-                type="number" 
-                step="0.1" 
-                value={tamanho}
-                onChange={(e) => setTamanho(e.target.value)}
-              />
+              <Input id="estoque" type="number" required value={estoque} onChange={(e) => setEstoque(e.target.value)} />
             </div>
           </div>
 
           <DialogFooter>
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Cancelar</Button>
-            <Button type="submit" disabled={loading} className="bg-accent-gold text-white">
-              {loading ? 'Salvando...' : 'Salvar'}
+            <Button type="submit" disabled={loading} className="bg-accent-gold text-white hover:bg-yellow-600">
+              {loading ? 'Salvando...' : (initialData ? 'Atualizar' : 'Salvar')}
             </Button>
           </DialogFooter>
         </form>

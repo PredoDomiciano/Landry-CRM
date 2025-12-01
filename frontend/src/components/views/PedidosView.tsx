@@ -4,9 +4,9 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Search, Plus, Package, Calendar, Pencil, Trash2, ChevronRight } from 'lucide-react';
+import { Search, Plus, Package, Calendar, Pencil, Trash2, ChevronRight, User, ShoppingBag, Ban } from 'lucide-react';
 import { PedidoForm } from '@/components/forms/PedidoForm';
-import { useApp } from '@/contexts/AppContext';
+import { useApp } from '../../contexts/AppContext'; 
 import type { Pedido } from '@/types/api';
 import { STATUS_PEDIDO_LABELS } from '@/types/api';
 import { useToast } from '@/hooks/use-toast';
@@ -32,59 +32,68 @@ const statusColors: Record<string, string> = {
 };
 
 export const PedidosView = () => {
-  const { pedidos, addPedido, updatePedido, deletePedido, updatePedidoStatus, addLog, currentUser } = useApp();
+  const { pedidos, addPedido, updatePedido, deletePedido, updatePedidoStatus, addLog, currentUser, oportunidades } = useApp();
   const { toast } = useToast();
   
   const [searchTerm, setSearchTerm] = useState('');
-  const [statusFilter, setStatusFilter] = useState('all');
+  const [statusFilter, setStatusFilter] = useState('ativos'); // Padrão: esconde entregues e cancelados
   
-  // Estados para CRUD
   const [showForm, setShowForm] = useState(false);
   const [pedidoEmEdicao, setPedidoEmEdicao] = useState<Pedido | null>(null);
   const [pedidoParaDeletar, setPedidoParaDeletar] = useState<Pedido | null>(null);
 
+  const getNomeCliente = (pedido: Pedido) => {
+    const clienteDireto = pedido.oportunidade?.cliente as any;
+    if (clienteDireto?.nome) return clienteDireto.nome;
+    if (clienteDireto?.nomeDoComercio) return clienteDireto.nomeDoComercio;
+
+    if (pedido.oportunidade?.idOportunidade) {
+        const op = oportunidades.find(o => o.idOportunidade === pedido.oportunidade?.idOportunidade);
+        const clienteOp = op?.cliente as any;
+        return clienteOp?.nome || clienteOp?.nomeDoComercio || 'Cliente Desconhecido';
+    }
+
+    return 'Cliente Não Vinculado';
+  };
+
+  const getResumoItens = (pedido: Pedido) => {
+    if (!pedido.itens || pedido.itens.length === 0) return 'Sem itens';
+    return pedido.itens.map(item => `${item.quantidade}x ${(item as any).produto?.nome || 'Produto'}`).join(', ');
+  };
+
+  // --- LÓGICA DE FILTRO ATUALIZADA ---
   const filteredPedidos = pedidos.filter(pedido => {
     const searchLower = searchTerm.toLowerCase();
+    const clienteNome = getNomeCliente(pedido).toLowerCase();
+
     const matchesSearch = 
         pedido.idPedido?.toString().includes(searchLower) ||
-        pedido.valorTotal.toString().includes(searchLower);
+        pedido.valorTotal.toString().includes(searchLower) ||
+        clienteNome.includes(searchLower);
         
-    const matchesStatus = statusFilter === 'all' || pedido.status === statusFilter;
+    let matchesStatus = true;
+    if (statusFilter === 'ativos') {
+        // Esconde Entregue e Cancelado
+        matchesStatus = pedido.status !== 'ENTREGUE' && pedido.status !== 'CANCELADO';
+    } else if (statusFilter !== 'all') {
+        matchesStatus = pedido.status === statusFilter;
+    }
+
     return matchesSearch && matchesStatus;
   });
 
-  // Salvar (Novo ou Editar)
   const handleSavePedido = async (dados: Partial<Pedido>) => {
     try {
       if (pedidoEmEdicao && pedidoEmEdicao.idPedido) {
-        // MODO EDIÇÃO
         if (updatePedido) {
             await updatePedido(pedidoEmEdicao.idPedido, dados);
-            // Log
-            await addLog({
-                titulo: "Pedido Atualizado",
-                descricao: `Pedido #${pedidoEmEdicao.idPedido} alterado por ${currentUser?.email || 'Admin'}.`,
-                data: new Date().toISOString(), // CORREÇÃO: Convertido para string
-                tipoDeAtividade: 5,
-                usuario: currentUser || undefined
-            });
         }
       } else {
-        // MODO CRIAÇÃO
         await addPedido(dados);
-        // Log
-        await addLog({
-            titulo: "Novo Pedido",
-            descricao: `Novo pedido registrado no valor de R$ ${dados.valorTotal}.`,
-            data: new Date().toISOString(), // CORREÇÃO: Convertido para string
-            tipoDeAtividade: 5,
-            usuario: currentUser || undefined
-        });
       }
       setShowForm(false);
       setPedidoEmEdicao(null);
     } catch (error) {
-       // O form já dispara o toast de erro/sucesso, mas garantimos aqui
        console.error(error);
     }
   };
@@ -96,18 +105,9 @@ export const PedidosView = () => {
 
   const handleConfirmDelete = async () => {
     if (!pedidoParaDeletar || !deletePedido || !pedidoParaDeletar.idPedido) return;
-
     try {
         await deletePedido(pedidoParaDeletar.idPedido);
-        toast({ title: "Removido", description: "Pedido excluído com sucesso." });
-        
-        await addLog({
-            titulo: "Pedido Removido",
-            descricao: `Pedido #${pedidoParaDeletar.idPedido} foi excluído.`,
-            data: new Date().toISOString(), // CORREÇÃO: Convertido para string
-            tipoDeAtividade: 4,
-            usuario: currentUser || undefined
-        });
+        toast({ title: "Removido", description: "Pedido excluído." });
     } catch (error) {
         toast({ title: "Erro", description: "Erro ao excluir pedido.", variant: "destructive" });
     } finally {
@@ -115,13 +115,21 @@ export const PedidosView = () => {
     }
   };
 
+  // --- NOVO: CANCELAR PEDIDO ---
+  const handleCancelarPedido = async (id: number) => {
+      try {
+          await updatePedidoStatus(id, 'CANCELADO');
+          toast({ title: "Pedido Cancelado", description: "Status alterado para Cancelado." });
+      } catch (error) {
+          toast({ title: "Erro", description: "Erro ao cancelar pedido.", variant: "destructive" });
+      }
+  };
+
   const handleAvancarStatus = async (id: number, currentStatus: string) => {
     const fluxo = ['PENDENTE', 'CONFIRMADO', 'PAGO', 'PRODUCAO', 'ENVIADO', 'ENTREGUE'];
     const index = fluxo.indexOf(currentStatus);
-    
     if (index >= 0 && index < fluxo.length - 1) {
-      const nextStatus = fluxo[index + 1];
-      await updatePedidoStatus(id, nextStatus);
+      await updatePedidoStatus(id, fluxo[index + 1]);
     }
   };
 
@@ -145,7 +153,7 @@ export const PedidosView = () => {
         <div className="relative flex-1">
           <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
           <Input
-            placeholder="Buscar por ID do pedido..."
+            placeholder="Buscar por ID, Valor ou Cliente..."
             className="pl-8"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
@@ -156,12 +164,14 @@ export const PedidosView = () => {
             <SelectValue placeholder="Status" />
           </SelectTrigger>
           <SelectContent>
+            <SelectItem value="ativos">Em Andamento (Padrão)</SelectItem>
             <SelectItem value="all">Todos</SelectItem>
             <SelectItem value="PENDENTE">Pendente</SelectItem>
             <SelectItem value="CONFIRMADO">Confirmado</SelectItem>
             <SelectItem value="PRODUCAO">Em Produção</SelectItem>
             <SelectItem value="ENVIADO">Enviado</SelectItem>
             <SelectItem value="ENTREGUE">Entregue</SelectItem>
+            <SelectItem value="CANCELADO">Cancelado</SelectItem>
           </SelectContent>
         </Select>
       </div>
@@ -181,16 +191,13 @@ export const PedidosView = () => {
           <AlertDialogHeader>
             <AlertDialogTitle>Excluir Pedido?</AlertDialogTitle>
             <AlertDialogDescription>
-              Essa ação removerá o Pedido <b>#{pedidoParaDeletar?.idPedido}</b> e não poderá ser desfeita.
+              Essa ação removerá o Pedido <b>#{pedidoParaDeletar?.idPedido}</b>. Use "Cancelar" se quiser manter o histórico.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancelar</AlertDialogCancel>
-            <AlertDialogAction 
-                onClick={handleConfirmDelete}
-                className="bg-red-600 hover:bg-red-700 text-white"
-            >
-                Excluir
+            <AlertDialogAction onClick={handleConfirmDelete} className="bg-red-600 hover:bg-red-700 text-white">
+                Excluir Definitivamente
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -198,64 +205,79 @@ export const PedidosView = () => {
 
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
         {filteredPedidos.map((pedido) => (
-          <Card key={pedido.idPedido} className="hover:shadow-lg transition-all duration-300 border-l-4 border-l-accent-gold">
+          <Card key={pedido.idPedido} className="hover:shadow-lg transition-all duration-300 border-l-4 border-l-accent-gold group">
             <CardContent className="p-6">
-              <div className="flex justify-between items-start mb-4">
+              <div className="flex justify-between items-start mb-2">
                 <div className="flex items-center gap-3">
-                  <div className="h-10 w-10 rounded-full bg-slate-100 flex items-center justify-center">
-                    <Package className="h-5 w-5 text-slate-600" />
+                  <div className="h-12 w-12 rounded-full bg-slate-100 flex items-center justify-center group-hover:bg-accent-gold/10 transition-colors shrink-0">
+                    <Package className="h-6 w-6 text-slate-600 group-hover:text-accent-gold" />
                   </div>
-                  <div>
+                  <div className="overflow-hidden">
                     <h3 className="font-bold text-lg">Pedido #{pedido.idPedido}</h3>
-                    <div className="flex items-center text-xs text-muted-foreground gap-1">
-                       <Calendar className="w-3 h-3" />
-                       {new Date(pedido.data).toLocaleDateString('pt-BR')}
+                    <div className="flex items-center text-sm font-medium text-slate-700 gap-1 truncate">
+                       <User className="w-3 h-3 text-muted-foreground" />
+                       <span className="truncate" title={getNomeCliente(pedido)}>
+                         {getNomeCliente(pedido)}
+                       </span>
                     </div>
                   </div>
                 </div>
+                {/* Badge usando o MAPA de Labels para remover underline */}
                 <Badge 
                   variant="outline" 
-                  className={`${statusColors[pedido.status] || 'bg-slate-100'} border px-3 py-1`}
+                  className={`${statusColors[pedido.status] || 'bg-slate-100'} border px-2 py-1 text-xs shrink-0`}
                 >
                   {STATUS_PEDIDO_LABELS[pedido.status] || pedido.status}
                 </Badge>
               </div>
 
-              <div className="space-y-4">
-                <div className="bg-slate-50 p-3 rounded-lg flex justify-between items-center">
-                   <span className="text-sm text-slate-600">Valor Total</span>
-                   <span className="text-lg font-bold text-slate-900">R$ {pedido.valorTotal.toLocaleString('pt-BR', {minimumFractionDigits: 2})}</span>
-                </div>
+              <div className="mb-4 pl-[3.5rem]">
+                 <div className="flex items-center text-xs text-muted-foreground gap-1 mb-1">
+                    <Calendar className="w-3 h-3" />
+                    {new Date(pedido.data).toLocaleDateString('pt-BR')}
+                 </div>
+                 
+                 <div className="bg-slate-50 p-2 rounded text-xs text-slate-600 flex gap-2 items-start">
+                    <ShoppingBag className="w-3 h-3 mt-0.5 shrink-0" />
+                    <p className="line-clamp-2" title={getResumoItens(pedido)}>
+                       {getResumoItens(pedido)}
+                    </p>
+                 </div>
 
-                <div className="flex gap-2">
-                  <Button 
-                    variant="outline" 
-                    size="sm" 
-                    className="flex-1"
-                    onClick={() => handleClickEditar(pedido)}
-                  >
-                    <Pencil className="w-4 h-4 mr-2" /> Editar
-                  </Button>
-                  
-                  <Button 
-                    variant="ghost" 
-                    size="sm" 
-                    className="text-red-500 hover:bg-red-50"
-                    onClick={() => setPedidoParaDeletar(pedido)}
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </Button>
+                 <div className="flex justify-between items-end mt-2">
+                    <span className="text-xs text-slate-500">Total</span>
+                    <span className="text-lg font-bold text-slate-900">R$ {pedido.valorTotal.toLocaleString('pt-BR', {minimumFractionDigits: 2})}</span>
+                 </div>
+              </div>
 
-                  {pedido.status !== 'ENTREGUE' && pedido.status !== 'CANCELADO' && (
-                    <Button 
-                      size="sm"
-                      className="bg-accent-gold/10 text-accent-gold hover:bg-accent-gold/20 border-accent-gold/20 border"
-                      onClick={() => pedido.idPedido && handleAvancarStatus(pedido.idPedido, pedido.status)}
-                    >
-                      Avançar <ChevronRight className="w-4 h-4 ml-1" />
+              <div className="flex gap-2 mt-4 pt-4 border-t items-center">
+                <Button variant="ghost" size="icon" className="h-8 w-8 text-slate-500" onClick={() => handleClickEditar(pedido)}>
+                  <Pencil className="w-4 h-4" />
+                </Button>
+                
+                {/* Botão Cancelar Pedido (Novo) */}
+                {pedido.status !== 'CANCELADO' && pedido.status !== 'ENTREGUE' && (
+                    <Button variant="ghost" size="icon" className="h-8 w-8 text-orange-500" title="Cancelar Pedido"
+                        onClick={() => pedido.idPedido && handleCancelarPedido(pedido.idPedido)}>
+                        <Ban className="w-4 h-4" />
                     </Button>
-                  )}
-                </div>
+                )}
+
+                <Button variant="ghost" size="icon" className="h-8 w-8 text-red-500" onClick={() => setPedidoParaDeletar(pedido)}>
+                  <Trash2 className="w-4 h-4" />
+                </Button>
+
+                <div className="flex-1"></div>
+
+                {pedido.status !== 'ENTREGUE' && pedido.status !== 'CANCELADO' && (
+                  <Button 
+                    size="sm"
+                    className="bg-accent-gold/10 text-accent-gold hover:bg-accent-gold/20 border-accent-gold/20 border"
+                    onClick={() => pedido.idPedido && handleAvancarStatus(pedido.idPedido, pedido.status)}
+                  >
+                    Avançar <ChevronRight className="w-4 h-4 ml-1" />
+                  </Button>
+                )}
               </div>
             </CardContent>
           </Card>
@@ -265,7 +287,9 @@ export const PedidosView = () => {
       {filteredPedidos.length === 0 && (
         <div className="text-center py-12">
            <Package className="w-12 h-12 text-slate-200 mx-auto mb-3" />
-          <p className="text-muted-foreground">Nenhum pedido encontrado</p>
+          <p className="text-muted-foreground">
+             {statusFilter === 'ativos' ? "Nenhum pedido pendente." : "Nenhum pedido encontrado."}
+          </p>
         </div>
       )}
     </div>

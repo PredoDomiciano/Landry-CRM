@@ -1,33 +1,36 @@
-package com.landryjoias.crm.security;
+package com.landryjoias.crm.security; // ou .security se estiver lá
 
-import com.landryjoias.crm.dto.LoginDTO;
+import com.landryjoias.crm.dto.LoginDTO; // Certifica-te que tens este DTO
 import com.landryjoias.crm.entity.UsuarioEntity;
 import com.landryjoias.crm.repository.UsuarioRepository;
 import com.landryjoias.crm.security.TokenService;
-import org.springframework.beans.factory.annotation.Autowired;
+import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+
 import java.util.Collections;
 
 @RestController
 @RequestMapping("/auth")
+@RequiredArgsConstructor // <--- Injeção de dependência moderna (Lombok)
 public class AuthController {
 
-    @Autowired
-    private UsuarioRepository repository;
-
-    @Autowired
-    private TokenService tokenService;
+    private final UsuarioRepository repository;
+    private final TokenService tokenService; // <--- Agora deve aparecer como "usado"
 
     @PostMapping("/login")
     public ResponseEntity<?> login(@RequestBody LoginDTO dados) {
-        // Busca usuário pelo email
+        // 1. Busca o usuário no banco
         UsuarioEntity usuario = repository.findByEmail(dados.getEmail())
                 .orElse(null);
 
-        // Verifica se existe e se a senha bate
+        // 2. Verifica senha (em texto puro por enquanto, conforme teu projeto)
         if (usuario != null && usuario.getSenha().equals(dados.getSenha())) {
+            
+            // 3. AQUI ESTÁ O USO OBRIGATÓRIO DO TOKEN SERVICE
             String token = tokenService.gerarToken(usuario);
+            
+            // 4. Retorna o token para o frontend
             return ResponseEntity.ok(Collections.singletonMap("token", token));
         }
 

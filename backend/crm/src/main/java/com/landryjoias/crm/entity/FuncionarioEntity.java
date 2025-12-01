@@ -17,21 +17,21 @@ public class FuncionarioEntity {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Integer idFuncionario;
-
+    
     @Nonnull
     private String nome;
-
+    
     @Column(nullable = false, unique = true)
     private String cpf;
-
+    
     // Aqui definimos a profissão dele na joalheria
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private Cargo cargo;
-
+    
     @Column(nullable = false)
     private String email;
-
+    
     @OneToOne(cascade = CascadeType.ALL)
     @JoinColumn(name = "idUsuario", referencedColumnName = "idUsuario")
     private UsuarioEntity usuario;

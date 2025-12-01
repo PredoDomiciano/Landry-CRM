@@ -7,25 +7,25 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 
-@Table(name = "Produtos_Pedidos")
 @Entity
+@Table(name = "Produtos_Pedidos")
 @Getter
 @Setter
-@AllArgsConstructor
 @NoArgsConstructor
+@AllArgsConstructor
 public class ProdutoPedidoEntity {
+
     @EmbeddedId
     private ProdutoPedidoId id;
 
-    @JsonIgnore
     @ManyToOne
-    @MapsId("idPedido")
-    @JoinColumn(name = "idPedido")
+    @MapsId("idPedido") // pega o id da PK composta
+    @JoinColumn(name = "idPedido", nullable = false)
     private PedidosEntity pedido;
 
     @ManyToOne
     @MapsId("idProduto")
-    @JoinColumn(name = "idProduto")
+    @JoinColumn(name = "idProduto", nullable = false)
     private ProdutosEntity produto;
 
     @Column(nullable = false)
@@ -33,9 +33,14 @@ public class ProdutoPedidoEntity {
 
     private String pedra;
 
-    @Column(nullable = false)
-    private String tamanho; // @Nonnull removido
+    @Enumerated(EnumType.STRING)
+    private Tamanho tamanho;
+
+    @Column(name = "tamanho_personalizado")
+    private String tamanhoPersonalizado;
 
     @Column(nullable = false)
-    private float valor; // @Nonnull removido
+    private float valor;
 }
+
+

@@ -4,20 +4,16 @@ import java.util.List;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.DeleteMapping;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.PutMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 import lombok.RequiredArgsConstructor;
+
+// IMPORTANTE: Importar o DTO
+import com.landryjoias.crm.dto.PedidoDTO;
 import com.landryjoias.crm.entity.PedidosEntity;
 import com.landryjoias.crm.services.PedidosService;
 
 @RestController
-@RequiredArgsConstructor // colocando isso não precisa colocar @Autowired no atributo
+@RequiredArgsConstructor
 @RequestMapping(value = "/pedidos")
 public class PedidosController {
     private final PedidosService pedidosService;
@@ -29,12 +25,15 @@ public class PedidosController {
     }
 
     @PostMapping
-    public ResponseEntity<PedidosEntity> incluir(@RequestBody PedidosEntity pedidos) {
+    // CORREÇÃO AQUI: Recebe o DTO (JSON simples do front) em vez da Entidade
+    public ResponseEntity<PedidosEntity> incluir(@RequestBody PedidoDTO pedidoDto) {
         
-        PedidosEntity novo = pedidosService.incluir(pedidos);
-        if (novo != null) {
+        try {
+            PedidosEntity novo = pedidosService.incluir(pedidoDto);
             return new ResponseEntity<>(novo, HttpStatus.CREATED);
-        } else {
+        } catch (Exception e) {
+            // Se der erro (ex: sem estoque), devolve erro 400 com a mensagem
+            System.err.println("Erro ao salvar pedido: " + e.getMessage());
             return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
         }
         

@@ -3,28 +3,40 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
-import { Funcionario } from '@/types/api'; // Ajuste o import conforme seu projeto
+import type { Funcionario } from '@/types/api';
+import { CARGO_LABELS } from '@/types/api'; 
+
+const CARGOS_KEYS = [
+  'SETOR_COMERCIAL', 'MODELAGEM', 'INJECAO_DE_CERA', 'CRAVACAO', 'POLIMENTO', 
+  'ACABAMENTO', 'FUNDICAO', 'SOLDAGEM', 'BANHO', 'CONTROLE_DE_QUALIDADE', 'ADMINISTRADOR'
+];
 
 interface FuncionarioFormProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  // Aceita qualquer objeto parcial para permitir edição
   onSubmit: (funcionario: any) => Promise<void>;
-  initialData?: Funcionario | null; // Adicionado para edição
+  initialData?: Funcionario | null;
 }
 
 export const FuncionarioForm = ({ open, onOpenChange, onSubmit, initialData }: FuncionarioFormProps) => {
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
 
-  // States para os campos (Edição)
+  // States Pessoais
   const [nome, setNome] = useState('');
   const [email, setEmail] = useState('');
   const [cpf, setCpf] = useState('');
   const [cargo, setCargo] = useState('');
 
-  // Preenche os dados quando abre para edição
+  // States Endereço
+  const [rua, setRua] = useState('');
+  const [numeroCasa, setNumeroCasa] = useState(''); // NOVO
+  const [bairro, setBairro] = useState('');
+  const [cidade, setCidade] = useState('');
+  const [cep, setCep] = useState('');
+
   useEffect(() => {
     if (open) {
       if (initialData) {
@@ -32,12 +44,23 @@ export const FuncionarioForm = ({ open, onOpenChange, onSubmit, initialData }: F
         setEmail(initialData.email || '');
         setCpf(initialData.cpf || '');
         setCargo(initialData.cargo || '');
+
+        const contato = (initialData as any).contato || initialData;
+        setRua(contato.rua || '');
+        setNumeroCasa(contato.numeroCasa || ''); // Recupera Número
+        setBairro(contato.bairro || '');
+        setCidade(contato.cidade || '');
+        setCep(contato.cep || '');
       } else {
-        // Limpa para novo cadastro
         setNome('');
         setEmail('');
         setCpf('');
         setCargo('');
+        setRua('');
+        setNumeroCasa('');
+        setBairro('');
+        setCidade('');
+        setCep('');
       }
     }
   }, [open, initialData]);
@@ -46,30 +69,37 @@ export const FuncionarioForm = ({ open, onOpenChange, onSubmit, initialData }: F
     e.preventDefault();
     setLoading(true);
 
-    // Cria o objeto payload
-    const funcionarioData = {
+    const funcionarioPayload = {
       nome,
       email,
       cpf,
-      cargo
+      cargo,
+      
+      rua,
+      numeroCasa, // NOVO
+      bairro,
+      cidade,
+      cep,
+      
+      contato: {
+        rua,
+        numeroCasa, // NOVO
+        bairro,
+        cidade,
+        cep,
+        email 
+      }
     };
 
     try {
-      await onSubmit(funcionarioData);
+      await onSubmit(funcionarioPayload);
       toast({
         title: "Sucesso",
-        description: initialData 
-          ? "Dados do funcionário atualizados." 
-          : "Funcionário adicionado com sucesso."
+        description: initialData ? "Funcionário atualizado." : "Funcionário adicionado."
       });
-      // O pai (View) fechará o modal
     } catch (error) {
       console.error(error);
-      toast({
-        title: "Erro",
-        description: "Não foi possível salvar o funcionário.",
-        variant: "destructive"
-      });
+      toast({ title: "Erro", description: "Falha ao salvar.", variant: "destructive" });
     } finally {
       setLoading(false);
     }
@@ -77,76 +107,86 @@ export const FuncionarioForm = ({ open, onOpenChange, onSubmit, initialData }: F
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[500px]">
+      <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>{initialData ? 'Editar Perfil' : 'Novo Funcionário'}</DialogTitle>
           <DialogDescription>
-            {initialData ? 'Atualize as informações do colaborador.' : 'Adicione um novo funcionário à equipe.'}
+            {initialData ? 'Atualize as informações.' : 'Adicione um novo membro.'}
           </DialogDescription>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="nome">Nome Completo *</Label>
-            <Input 
-              id="nome" 
-              placeholder="Ex: João Silva Santos"
-              required 
-              value={nome}
-              onChange={(e) => setNome(e.target.value)}
-            />
-          </div>
-
-          <div className="grid grid-cols-2 gap-4">
+        <form onSubmit={handleSubmit} className="space-y-6">
+          
+          {/* Profissional */}
+          <div className="space-y-4">
+            <h3 className="text-sm font-medium text-muted-foreground border-b pb-2">Dados Profissionais</h3>
+            
             <div className="space-y-2">
-              <Label htmlFor="email">E-mail *</Label>
-              <Input 
-                id="email" 
-                type="email"
-                placeholder="joao@landryjoias.com"
-                required 
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-              />
+              <Label htmlFor="nome">Nome Completo *</Label>
+              <Input id="nome" required value={nome} onChange={(e) => setNome(e.target.value)} />
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="email">E-mail *</Label>
+                <Input id="email" type="email" required value={email} onChange={(e) => setEmail(e.target.value)} />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="cpf">CPF *</Label>
+                <Input id="cpf" required value={cpf} onChange={(e) => setCpf(e.target.value)} />
+              </div>
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="cpf">CPF *</Label>
-              <Input 
-                id="cpf" 
-                placeholder="000.000.000-00"
-                required 
-                value={cpf}
-                onChange={(e) => setCpf(e.target.value)}
-              />
+              <Label htmlFor="cargo">Cargo *</Label>
+              <Select value={cargo} onValueChange={setCargo} required>
+                <SelectTrigger><SelectValue placeholder="Selecione o cargo" /></SelectTrigger>
+                <SelectContent>
+                  {CARGOS_KEYS.map((key) => (
+                    <SelectItem key={key} value={key}>{CARGO_LABELS[key] || key}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
           </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="cargo">Cargo *</Label>
-            <Input 
-              id="cargo" 
-              placeholder="Ex: Vendedor"
-              required 
-              value={cargo}
-              onChange={(e) => setCargo(e.target.value)}
-            />
+          {/* Endereço */}
+          <div className="space-y-4">
+            <h3 className="text-sm font-medium text-muted-foreground border-b pb-2">Endereço Residencial</h3>
+            
+            <div className="grid grid-cols-6 gap-4">
+              <div className="space-y-2 col-span-2">
+                <Label htmlFor="cep">CEP</Label>
+                <Input id="cep" value={cep} onChange={(e) => setCep(e.target.value)} placeholder="00000-000" />
+              </div>
+              <div className="space-y-2 col-span-4">
+                <Label htmlFor="cidade">Cidade</Label>
+                <Input id="cidade" value={cidade} onChange={(e) => setCidade(e.target.value)} />
+              </div>
+              
+              <div className="space-y-2 col-span-6">
+                <Label htmlFor="rua">Rua / Logradouro</Label>
+                <Input id="rua" value={rua} onChange={(e) => setRua(e.target.value)} />
+              </div>
+              
+              <div className="space-y-2 col-span-2">
+                <Label htmlFor="numero">Número</Label>
+                <Input id="numero" value={numeroCasa} onChange={(e) => setNumeroCasa(e.target.value)} placeholder="Nº" />
+              </div>
+
+              <div className="space-y-2 col-span-4">
+                <Label htmlFor="bairro">Bairro</Label>
+                <Input id="bairro" value={bairro} onChange={(e) => setBairro(e.target.value)} />
+              </div>
+            </div>
           </div>
 
-          <DialogFooter className="gap-2">
-            <Button 
-              type="button" 
-              variant="outline" 
-              onClick={() => onOpenChange(false)}
-              disabled={loading}
-            >
+          <DialogFooter className="gap-2 pt-2">
+            <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>
               Cancelar
             </Button>
-            <Button 
-              type="submit" 
-              className="bg-accent-gold text-white hover:bg-yellow-600"
-              disabled={loading}
-            >
+            <Button type="submit" className="bg-accent-gold text-white hover:bg-yellow-600" disabled={loading}>
               {loading ? 'Salvando...' : (initialData ? 'Atualizar' : 'Salvar')}
             </Button>
           </DialogFooter>
