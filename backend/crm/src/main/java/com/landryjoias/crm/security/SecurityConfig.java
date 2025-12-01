@@ -41,6 +41,8 @@ public class SecurityConfig {
                     req.requestMatchers("/v3/api-docs/**", "/swagger-ui.html", "/swagger-ui/**").permitAll();
 
                     // LIBERA APENAS O POST /usuarios PARA CRIAR USUÁRIO SEM TOKEN
+                    req.requestMatchers(HttpMethod.GET, "/relatorios/**").permitAll();
+
                     req.requestMatchers(HttpMethod.POST, "/usuarios").permitAll();
 
                     // TUDO RESTANTE REQUER TOKEN
