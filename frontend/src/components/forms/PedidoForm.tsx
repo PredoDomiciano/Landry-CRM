@@ -8,6 +8,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useApp } from '@/contexts/AppContext';
 import { Plus, Trash2, User } from 'lucide-react';
 import type { Pedido, StatusPedido } from '@/types/api';
+import { oportunidadeApi } from '@/services/api';
 
 interface PedidoFormProps {
   open: boolean;
@@ -22,24 +23,21 @@ interface ProdutoItem {
   valor: number;
   tamanho: string;
   pedra?: string;
-  nomeProduto?: string; // Adicionado para visualização
+  nomeProduto?: string; 
 }
 
 export const PedidoForm = ({ open, onOpenChange, onSubmit, initialData }: PedidoFormProps) => {
   const { toast } = useToast();
-  // Pegamos clientes, produtos e oportunidades do contexto
-  const { produtos, oportunidades, clientes } = useApp(); 
+  const { produtos, oportunidades, clientes, addOportunidade } = useApp(); 
   const [loading, setLoading] = useState(false);
   
-  // Estados do Formulário
-  const [clienteId, setClienteId] = useState<string>(''); // Seleção do Cliente
+  const [clienteId, setClienteId] = useState<string>(''); 
   const [oportunidadeId, setOportunidadeId] = useState<string>('');
   const [status, setStatus] = useState<StatusPedido>('PENDENTE');
   const [itens, setItens] = useState<ProdutoItem[]>([
     { produtoId: 0, quantidade: 1, valor: 0, tamanho: '' }
   ]);
 
-  // Filtra as oportunidades: Mostra apenas as do cliente selecionado (ou todas se nenhum selecionado)
   const oportunidadesFiltradas = clienteId 
     ? oportunidades.filter(op => op.cliente?.idCliente?.toString() === clienteId)
     : oportunidades;
@@ -47,31 +45,28 @@ export const PedidoForm = ({ open, onOpenChange, onSubmit, initialData }: Pedido
   useEffect(() => {
     if (open) {
       if (initialData) {
-        // 1. Tentar identificar o cliente pelo pedido existente
         const opVinculada = oportunidades.find(o => o.idOportunidade === initialData.oportunidade?.idOportunidade);
-        if (opVinculada?.cliente?.idCliente) {
-            setClienteId(opVinculada.cliente.idCliente.toString());
-        }
+        const idClienteEncontrado = opVinculada?.cliente?.idCliente || (initialData.oportunidade?.cliente as any)?.idCliente;
+        
+        if (idClienteEncontrado) setClienteId(idClienteEncontrado.toString());
 
         setOportunidadeId(initialData.oportunidade?.idOportunidade?.toString() || '');
         setStatus(initialData.status);
         
-        // 2. Carregar itens e garantir que o nome do produto esteja lá
         if (initialData.itens && initialData.itens.length > 0) {
             const itensFormatados = initialData.itens.map((item: any) => ({
-                produtoId: item.produto?.idProduto || 0,
+                produtoId: item.produto?.idProduto || item.idProduto || 0, // Tenta pegar de ambos os lugares
                 quantidade: item.quantidade,
                 valor: item.valor,
                 tamanho: item.tamanho || '',
                 pedra: item.pedra || '',
-                nomeProduto: item.produto?.nome // Recupera o nome para exibir
+                nomeProduto: item.produto?.nome 
             }));
             setItens(itensFormatados);
         } else {
             setItens([{ produtoId: 0, quantidade: 1, valor: 0, tamanho: '' }]);
         }
       } else {
-        // Limpa para novo pedido
         setClienteId('');
         setOportunidadeId('');
         setStatus('PENDENTE');
@@ -92,17 +87,14 @@ export const PedidoForm = ({ open, onOpenChange, onSubmit, initialData }: Pedido
     const newItens = [...itens];
     newItens[index] = { ...newItens[index], [field]: value };
     
-    // Se o usuário mudou o produto, atualizamos preço, tamanho e NOME automaticamente
     if (field === 'produtoId') {
       const produto = produtos.find(p => p.idProduto === value);
       if (produto) {
         newItens[index].valor = produto.valor;
-        // Converte tamanho para string de forma segura
         newItens[index].tamanho = typeof produto.tamanho === 'string' ? produto.tamanho : '';
-        newItens[index].nomeProduto = produto.nome; // Salva o nome para a interface
+        newItens[index].nomeProduto = produto.nome; 
       }
     }
-    
     setItens(newItens);
   };
 
@@ -121,42 +113,66 @@ export const PedidoForm = ({ open, onOpenChange, onSubmit, initialData }: Pedido
       return;
     }
 
-    const oportunidade = oportunidadeId 
-      ? oportunidades.find(o => o.idOportunidade === parseInt(oportunidadeId)) 
-      : undefined;
-
-    // --- CRIAÇÃO DO PACOTE DE DADOS (PAYLOAD) ---
-    const pedidoPayload: any = {
-      data: initialData ? initialData.data : new Date().toISOString(),
-      status: status,
-      valorTotal: calcularTotal(),
-      oportunidade: oportunidade ? { 
-          idOportunidade: oportunidade.idOportunidade,
-          cliente: oportunidade.cliente // Envia o cliente junto para o Mock não perder a referência
-      } : null,
-      itens: itensValidos.map(item => {
-        // Busca o produto original para pegar o NOME
-        const prodOriginal = produtos.find(p => p.idProduto === item.produtoId);
-        return {
-            produto: { 
-                idProduto: item.produtoId,
-                nome: prodOriginal?.nome || 'Produto Sem Nome' // <--- AQUI RESOLVE O "UNDEFINED"
-            }, 
-            quantidade: item.quantidade,
-            tamanho: item.tamanho || 'U',
-            valor: item.valor,
-            pedra: item.pedra || ''
-        };
-      })
-    };
+    if (!clienteId) {
+        toast({ title: "Erro", description: "Selecione um cliente.", variant: "destructive" });
+        setLoading(false);
+        return;
+    }
 
     try {
-      await onSubmit(pedidoPayload);
-      toast({ title: "Sucesso!", description: "Pedido salvo com sucesso." });
-      // Não precisamos fechar aqui, a View fecha o modal
+        let finalOportunidadeId = oportunidadeId;
+        
+        // Se for venda direta (sem oportunidade), cria uma agora
+        if (!finalOportunidadeId) {
+            console.log("Criando oportunidade para Venda Direta...");
+            const novaOp = await oportunidadeApi.create({
+                nomeOportunidade: `Venda Direta - ${new Date().toLocaleDateString('pt-BR')}`,
+                valorEstimado: calcularTotal(),
+                estagioFunil: 'FECHADA',
+                dataDeFechamentoEstimada: new Date().toISOString().split('T')[0],
+                cliente: { idCliente: parseInt(clienteId) } as any // Aqui mantemos o objeto porque o DTO de Oportunidade pede objeto
+            });
+
+            if (novaOp && novaOp.idOportunidade) {
+                finalOportunidadeId = novaOp.idOportunidade.toString();
+                if(addOportunidade) addOportunidade(novaOp); 
+            } else {
+                throw new Error("Falha ao criar oportunidade automática.");
+            }
+        }
+
+        const dataCorreta = initialData 
+            ? initialData.data 
+            : new Date().toISOString().split('T')[0];
+
+        // --- PACOTE CORRIGIDO PARA O SEU DTO ---
+        // O seu Java PedidoDTO espera "idOportunidade" (Integer) e "idProduto" (Integer)
+        // Não envie objetos nested aqui!
+        const pedidoPayload = {
+            data: dataCorreta, 
+            status: status,
+            valorTotal: calcularTotal(),
+            
+            // CORREÇÃO 1: Envia direto o ID, não um objeto
+            idOportunidade: parseInt(finalOportunidadeId),
+            
+            // CORREÇÃO 2: Envia a lista com "idProduto" plano
+            itens: itensValidos.map(item => ({
+                idProduto: item.produtoId, // O DTO espera "idProduto"
+                quantidade: item.quantidade,
+                tamanho: item.tamanho || 'U',
+                valor: item.valor,
+                pedra: item.pedra || ''
+            }))
+        };
+
+        console.log("Payload enviado:", pedidoPayload); // Para conferires no F12
+        await onSubmit(pedidoPayload);
+        toast({ title: "Sucesso!", description: "Pedido realizado." });
+    
     } catch (error) {
       console.error(error);
-      toast({ title: "Erro", description: "Falha ao salvar.", variant: "destructive" });
+      toast({ title: "Erro", description: "Falha ao processar pedido.", variant: "destructive" });
     } finally {
       setLoading(false);
     }
@@ -173,10 +189,9 @@ export const PedidoForm = ({ open, onOpenChange, onSubmit, initialData }: Pedido
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="grid grid-cols-2 gap-4">
             
-            {/* NOVO CAMPO: Seleção de Cliente */}
             <div className="space-y-2 col-span-2">
               <Label htmlFor="clienteId" className="flex items-center gap-2">
-                <User className="w-4 h-4" /> Cliente (Quem fez o pedido?)
+                <User className="w-4 h-4" /> Cliente *
               </Label>
               <Select value={clienteId} onValueChange={(val) => { setClienteId(val); setOportunidadeId(''); }}>
                 <SelectTrigger>
@@ -192,16 +207,15 @@ export const PedidoForm = ({ open, onOpenChange, onSubmit, initialData }: Pedido
               </Select>
             </div>
 
-            {/* Oportunidade (Filtrada) */}
             <div className="space-y-2">
-              <Label htmlFor="oportunidadeId">Vincular a Negociação *</Label>
-              <Select value={oportunidadeId} onValueChange={setOportunidadeId} required>
+              <Label htmlFor="oportunidadeId">Vincular a Negociação</Label>
+              <Select value={oportunidadeId} onValueChange={setOportunidadeId}>
                 <SelectTrigger>
-                  <SelectValue placeholder={clienteId ? "Selecione a oportunidade" : "Selecione um cliente primeiro"} />
+                  <SelectValue placeholder={clienteId ? "Selecione (Opcional para Venda Direta)" : "Selecione um cliente primeiro"} />
                 </SelectTrigger>
                 <SelectContent>
                   {oportunidadesFiltradas.length === 0 ? (
-                     <SelectItem value="disabled" disabled>Nenhuma oportunidade encontrada</SelectItem>
+                     <SelectItem value="none" disabled>Nenhuma negociação aberta</SelectItem>
                   ) : (
                     oportunidadesFiltradas.map((op) => (
                         <SelectItem key={op.idOportunidade} value={op.idOportunidade?.toString() || ''}>
@@ -211,9 +225,11 @@ export const PedidoForm = ({ open, onOpenChange, onSubmit, initialData }: Pedido
                   )}
                 </SelectContent>
               </Select>
+              <p className="text-[10px] text-muted-foreground mt-1">
+                * Se deixar vazio, será criada uma "Venda Direta" automaticamente.
+              </p>
             </div>
 
-            {/* Status */}
             <div className="space-y-2">
               <Label htmlFor="status">Status Atual</Label>
               <Select value={status} onValueChange={(v) => setStatus(v as StatusPedido)}>

@@ -20,81 +20,69 @@ public class PedidosService {
     private final ProdutosRepository produtosRepository;
     private final OportunidadesRepository oportunidadesRepository;
     private final LogRepository logRepository;
+    private final UsuarioRepository usuarioRepository; // Necessário para o Log funcionar
 
     @Transactional
     public PedidosEntity incluir(PedidoDTO dto) {
         
-        // 1. Criar o cabeçalho do Pedido
+        // 1. Criar e Salvar o Cabeçalho (Vazio de itens inicialmente)
         PedidosEntity pedido = new PedidosEntity();
         pedido.setData(dto.getData());
         pedido.setStatus(dto.getStatus());
-        // Converter valor total (assumindo que o DTO traz Double e o banco/entity usa int ou float)
-        // Se a sua entity usa Integer: dto.getValorTotal().intValue()
-        // Se a sua entity usa Float: dto.getValorTotal().floatValue()
         pedido.setValorTotal(dto.getValorTotal().intValue()); 
 
-        // 2. Vincular Oportunidade (se existir)
         if (dto.getIdOportunidade() != null) {
             OportunidadesEntity op = oportunidadesRepository.findById(dto.getIdOportunidade())
                     .orElse(null);
             pedido.setOportunidade(op);
         }
 
-        // 3. Salvar Pedido (para gerar o ID)
         PedidosEntity pedidoSalvo = pedidosRepository.save(pedido);
 
-        // 4. Salvar Itens
+        // 2. Salvar os Itens um a um
         if (dto.getItens() != null && !dto.getItens().isEmpty()) {
             for (PedidoDTO.ItemPedidoDTO itemDto : dto.getItens()) {
                 
-                // Busca Produto no Banco
                 ProdutosEntity produto = produtosRepository.findById(itemDto.getIdProduto())
                         .orElseThrow(() -> new RuntimeException("Produto não encontrado ID: " + itemDto.getIdProduto()));
 
-                // Validação de Estoque
+                // Baixa de Estoque
                 if (produto.getQuantidadeEstoque() < itemDto.getQuantidade()) {
-                    throw new RuntimeException("Estoque insuficiente para: " + produto.getNome() + 
-                                             ". Disponível: " + produto.getQuantidadeEstoque());
+                    throw new RuntimeException("Estoque insuficiente: " + produto.getNome());
                 }
+                // (Opcional) Se quiseres baixar o estoque realmente, descomenta:
+                // produto.setQuantidadeEstoque(produto.getQuantidadeEstoque() - itemDto.getQuantidade());
+                // produtosRepository.save(produto);
 
-                // Cria Objeto de Ligação (Item)
                 ProdutoPedidoEntity itemEntity = new ProdutoPedidoEntity();
-                
-                // ID Composto
                 ProdutoPedidoId id = new ProdutoPedidoId(pedidoSalvo.getIdPedido(), produto.getIdProduto());
                 itemEntity.setId(id);
-                
-                // Relacionamentos
                 itemEntity.setPedido(pedidoSalvo);
                 itemEntity.setProduto(produto);
-                
-                // Dados Simples
                 itemEntity.setQuantidade(itemDto.getQuantidade());
                 itemEntity.setValor(itemDto.getValor().floatValue());
                 itemEntity.setPedra(itemDto.getPedra());
 
-                // --- LÓGICA DE TAMANHO (Enum vs Personalizado) ---
                 try {
-                    // Tenta converter o texto (ex: "ARO_12") para o Enum
                     Tamanho tamanhoEnum = Tamanho.valueOf(itemDto.getTamanho());
                     itemEntity.setTamanho(tamanhoEnum);
-                    itemEntity.setTamanhoPersonalizado(null);
-                } catch (IllegalArgumentException | NullPointerException e) {
-                    // Se falhar (ex: cliente digitou "15.5" ou veio vazio), define como PERSONALIZADO
+                } catch (Exception e) {
                     itemEntity.setTamanho(Tamanho.PERSONALIZADO);
-                    // Guarda o valor real escrito no campo texto extra
                     itemEntity.setTamanhoPersonalizado(itemDto.getTamanho());
                 }
 
-                // Salva o Item (Trigger SQL de baixa de estoque roda aqui)
                 itemRepository.save(itemEntity);
             }
         }
 
-        // Auditoria
-        registrarLog("Pedido Criado", "Pedido #" + pedidoSalvo.getIdPedido() + " criado com sucesso por " + getIdentificacaoUsuario());
+        registrarLog("Pedido Criado", "Pedido #" + pedidoSalvo.getIdPedido() + " criado com sucesso.");
         
-        return pedidoSalvo;
+        // --- A GRANDE CORREÇÃO (O RELOAD) ---
+        // Em vez de retornar 'pedidoSalvo' (que está incompleto na memória),
+        // buscamos o pedido completo no banco de dados. 
+        // Como o PedidosEntity tem FetchType.EAGER, ele vai trazer os itens e o cliente agora.
+        return pedidosRepository.findById(pedidoSalvo.getIdPedido())
+                .orElse(pedidoSalvo);
     }
 
     public PedidosEntity editar(int id, PedidosEntity pedidos) {
@@ -110,9 +98,10 @@ public class PedidosService {
             PedidosEntity salvo = this.pedidosRepository.save(atual);
 
             registrarLog("Pedido Editado", 
-                "O pedido #" + id + " mudou de status (" + statusAntigo + " -> " + pedidos.getStatus() + ") por " + getIdentificacaoUsuario());
+                "Pedido #" + id + " status: " + statusAntigo + " -> " + pedidos.getStatus());
 
-            return salvo;
+            // Também fazemos reload aqui para garantir
+            return pedidosRepository.findById(salvo.getIdPedido()).orElse(salvo);
         }
         return null;
     }
@@ -124,29 +113,18 @@ public class PedidosService {
     public void excluir(Integer id) {
         if (pedidosRepository.existsById(id)) {
             pedidosRepository.deleteById(id);
-            registrarLog("Pedido Excluído", "O pedido #" + id + " foi excluído por " + getIdentificacaoUsuario());
+            registrarLog("Pedido Excluído", "Pedido #" + id + " foi excluído.");
         }
     }
 
-    // --- MÉTODOS DE LOG ---
-    private String getIdentificacaoUsuario() {
+    // --- LOGS (CORRIGIDO PARA EVITAR ERRO 500) ---
+    private UsuarioEntity getUsuarioReal() {
         try {
             var auth = SecurityContextHolder.getContext().getAuthentication();
             if (auth != null && auth.getPrincipal() instanceof UsuarioEntity) {
-                UsuarioEntity user = (UsuarioEntity) auth.getPrincipal();
-                // Tenta nome, se não tiver, vai email
-                // Assumindo que criaste o getNomeCompleto na entidade Usuario, senão use getEmail
-                return user.getEmail(); 
-            }
-            return "Sistema";
-        } catch (Exception e) { return "Desconhecido"; }
-    }
-    
-    private UsuarioEntity getUsuarioLogado() {
-        try {
-            var auth = SecurityContextHolder.getContext().getAuthentication();
-            if (auth != null && auth.getPrincipal() instanceof UsuarioEntity) {
-                return (UsuarioEntity) auth.getPrincipal();
+                UsuarioEntity userMemoria = (UsuarioEntity) auth.getPrincipal();
+                // Busca o usuário oficial no banco para evitar erro de "Transient Instance"
+                return usuarioRepository.findByEmail(userMemoria.getEmail()).orElse(null);
             }
             return null;
         } catch (Exception e) { return null; }
@@ -156,12 +134,19 @@ public class PedidosService {
         try {
             LogEntity log = new LogEntity();
             log.setTitulo(titulo);
-            log.setTipoDeAtividade(4); // 4 = Sistema
+            log.setTipoDeAtividade(4);
             log.setAssunto("Gestão de Pedidos");
-            log.setDescricao(descricao);
+            
+            UsuarioEntity usuarioReal = getUsuarioReal();
+            String nomeUser = usuarioReal != null ? usuarioReal.getEmail() : "Sistema";
+            
+            log.setDescricao(descricao + " por " + nomeUser);
             log.setData(LocalDateTime.now());
-            log.setUsuario(getUsuarioLogado());
+            log.setUsuario(usuarioReal);
+            
             logRepository.save(log);
-        } catch (Exception e) { System.err.println("Erro Log: " + e.getMessage()); }
+        } catch (Exception e) {
+            System.err.println("Erro ao salvar log (não crítico): " + e.getMessage());
+        }
     }
 }

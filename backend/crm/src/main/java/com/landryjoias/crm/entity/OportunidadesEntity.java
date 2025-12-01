@@ -31,7 +31,7 @@ public class OportunidadesEntity {
     private LocalDate dataDeFechamentoEstimada;
 
     @JsonIgnoreProperties({ "oportunidades", "usuario" })
-    @ManyToOne
+    @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "idCliente")
     private ClienteEntity cliente;
 

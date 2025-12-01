@@ -20,18 +20,22 @@ public class PedidosEntity {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Integer idPedido;
+    
     @Nonnull
     private LocalDate data;
+    
     @Nonnull
     private Integer valorTotal;
+    
     @Enumerated(EnumType.STRING)
     private com.landryjoias.crm.entity.StatusPedido status;
 
-    @OneToOne
+    // ALTERAÇÃO 1: FetchType.EAGER obriga a trazer a oportunidade e os dados dela
+    @OneToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "idOportunidade")
     private OportunidadesEntity oportunidade;
 
-    // Relacionamento complexo com Produtos (veja abaixo)
-    @OneToMany(mappedBy = "pedido")
+    // ALTERAÇÃO 2: FetchType.EAGER obriga a trazer os itens junto com o pedido
+    @OneToMany(mappedBy = "pedido", fetch = FetchType.EAGER)
     private List<ProdutoPedidoEntity> itens;
 }

@@ -1,7 +1,9 @@
 package com.landryjoias.crm.controller;
 
 import java.util.List;
-
+import java.util.Map;
+import java.math.BigDecimal;   
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -39,6 +41,18 @@ public class ProdutosController {
         }
  
     }
+    // No ProdutosController.java
+
+@GetMapping("/filtro-avancado")
+public ResponseEntity<List<Map<String, Object>>> filtrarPorPreco(
+        @RequestParam BigDecimal min, 
+        @RequestParam BigDecimal max) {
+    
+    // Chama o Service, que chama o Repository, que chama a FUNCTION do SQL
+    List<Map<String, Object>> resultado = produtosService.buscarAvancadaPorPreco(min, max);
+    
+    return ResponseEntity.ok(resultado);
+}
 
     @PutMapping("/{id}")
     public ResponseEntity<ProdutosEntity> editar(@PathVariable int id,

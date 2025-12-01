@@ -4,8 +4,8 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
-import { Search, Plus, Target, ChevronRight, Trash2, Calendar, User, DollarSign, Eye, XCircle, CheckCircle, Pencil } from 'lucide-react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Search, Plus, Target, ChevronRight, Trash2, Eye, XCircle, CheckCircle, Pencil } from 'lucide-react';
 import { OportunidadeForm } from '@/components/forms/OportunidadeForm';
 import { useApp } from '@/contexts/AppContext';
 import type { Oportunidade, Pedido } from '@/types/api';
@@ -36,7 +36,7 @@ export const OportunidadesView = () => {
   const { toast } = useToast();
   
   const [searchTerm, setSearchTerm] = useState('');
-  const [estagioFilter, setEstagioFilter] = useState('ativos'); // Padrão 'ativos' para esconder fechadas
+  const [estagioFilter, setEstagioFilter] = useState('ativos'); 
   
   // Estados de Controle
   const [showForm, setShowForm] = useState(false);
@@ -44,18 +44,15 @@ export const OportunidadesView = () => {
   const [opDetalhes, setOpDetalhes] = useState<Oportunidade | null>(null);
   const [opEmEdicao, setOpEmEdicao] = useState<Oportunidade | null>(null);
 
-  // --- LÓGICA DE FILTRO ATUALIZADA ---
   const filteredOportunidades = oportunidades.filter(op => {
     const matchesSearch = op.nomeOportunidade.toLowerCase().includes(searchTerm.toLowerCase());
     
     let matchesEstagio = true;
     if (estagioFilter === 'ativos') {
-        // Mostra tudo MENOS Fechada e Perdida
         matchesEstagio = op.estagioFunil !== 'FECHADA' && op.estagioFunil !== 'PERDIDA';
     } else if (estagioFilter !== 'all') {
         matchesEstagio = op.estagioFunil === estagioFilter;
     }
-    // Se for 'all', mostra tudo (inclusive histórico)
 
     return matchesSearch && matchesEstagio;
   });
@@ -63,13 +60,11 @@ export const OportunidadesView = () => {
   const handleSaveOportunidade = async (dados: Partial<Oportunidade>) => {
     try {
         if (opEmEdicao && opEmEdicao.idOportunidade) {
-            // Edição
             if (updateOportunidade) {
                 await updateOportunidade(opEmEdicao.idOportunidade, dados);
                 toast({ title: "Atualizado", description: "Oportunidade editada com sucesso." });
             }
         } else {
-            // Criação
             await addOportunidade(dados);
             toast({ title: "Sucesso", description: "Oportunidade criada." });
             await addLog({
@@ -101,7 +96,7 @@ export const OportunidadesView = () => {
     }
   };
 
-  // --- NOVO: FINALIZAR E VIRAR PEDIDO ---
+  // --- CORREÇÃO AQUI ---
   const handleGanharOportunidade = async (op: Oportunidade) => {
     if(!op.idOportunidade) return;
 
@@ -109,28 +104,31 @@ export const OportunidadesView = () => {
         // 1. Atualiza status para FECHADA
         await updateOportunidadeStatus(op.idOportunidade, 'FECHADA');
 
-        // 2. Cria o Pedido automaticamente
+        // 2. Cria o Pedido automaticamente com DATA CORRETA
+        const hojeFormatado = new Date().toISOString().split('T')[0]; // Formato YYYY-MM-DD
+
         const novoPedido: Partial<Pedido> = {
-            data: new Date().toISOString(),
+            data: hojeFormatado, // <--- Aqui estava o problema
             valorTotal: op.valorEstimado,
             status: 'PENDENTE',
-            oportunidade: op // Vincula a oportunidade ao pedido
+            // Envia apenas o ID para evitar erro de referência circular
+            oportunidade: { idOportunidade: op.idOportunidade } as any 
         };
 
         if(addPedido) {
             await addPedido(novoPedido);
             toast({ 
                 title: "Parabéns! Venda Fechada!", 
-                description: "Oportunidade finalizada e Pedido criado automaticamente na aba Pedidos." 
+                description: "Pedido criado na aba Pedidos." 
             });
         }
         
     } catch (error) {
-        toast({ title: "Erro", description: "Erro ao finalizar venda.", variant: "destructive" });
+        console.error(error);
+        toast({ title: "Erro", description: "Erro ao criar pedido.", variant: "destructive" });
     }
   };
 
-  // --- NOVO: CANCELAR (VIRAR PERDIDA) ---
   const handleCancelarOportunidade = async (id: number) => {
       try {
         await updateOportunidadeStatus(id, 'PERDIDA');
@@ -145,7 +143,6 @@ export const OportunidadesView = () => {
       const index = stages.indexOf(currentStage);
       if (index >= 0 && index < stages.length - 1) {
           const nextStage = stages[index + 1];
-          // Se o próximo estágio for FECHADA, não usa essa função, o botão específico de "Ganhar" cuida disso
           if (nextStage === 'FECHADA') return; 
           
           await updateOportunidadeStatus(id, nextStage);
@@ -204,10 +201,9 @@ export const OportunidadesView = () => {
             if(!val) setOpEmEdicao(null);
         }}
         onSubmit={handleSaveOportunidade}
-        initialData={opEmEdicao} // Passa os dados para edição
+        initialData={opEmEdicao} 
       />
 
-      {/* MODAL DE CONFIRMAÇÃO DE EXCLUSÃO */}
       <AlertDialog open={!!opParaDeletar} onOpenChange={() => setOpParaDeletar(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
@@ -225,7 +221,6 @@ export const OportunidadesView = () => {
         </AlertDialogContent>
       </AlertDialog>
 
-      {/* DETALHES MODAL (MANTIDO IGUAL MAS COM BOTÃO DE FECHAR) */}
       <Dialog open={!!opDetalhes} onOpenChange={() => setOpDetalhes(null)}>
         <DialogContent className="sm:max-w-[500px]">
           <DialogHeader>
@@ -233,14 +228,19 @@ export const OportunidadesView = () => {
           </DialogHeader>
           {opDetalhes && (
             <div className="space-y-4 py-2 text-sm">
-               {/* ... (Mesmo conteúdo de detalhes do teu código original) ... */}
                <div className="p-3 bg-slate-50 rounded-lg border border-slate-100">
                   <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Título</span>
                   <p className="text-lg font-bold text-slate-800">{opDetalhes.nomeOportunidade}</p>
                </div>
-               {/* Adicionei apenas o básico aqui para economizar espaço, o teu original estava ótimo */}
-               <div className="p-3 bg-slate-50 rounded-lg border">
-                  <p className="font-bold">Valor: R$ {opDetalhes.valorEstimado?.toLocaleString('pt-BR')}</p>
+               <div className="grid grid-cols-2 gap-4">
+                  <div className="p-3 bg-slate-50 rounded-lg border">
+                      <span className="text-xs font-semibold text-muted-foreground">Valor</span>
+                      <p className="font-bold">R$ {opDetalhes.valorEstimado?.toLocaleString('pt-BR')}</p>
+                  </div>
+                  <div className="p-3 bg-slate-50 rounded-lg border">
+                      <span className="text-xs font-semibold text-muted-foreground">Cliente</span>
+                      <p className="font-medium truncate">{getNomeCliente(opDetalhes)}</p>
+                  </div>
                </div>
             </div>
           )}
@@ -276,7 +276,6 @@ export const OportunidadesView = () => {
                 </div>
               </div>
 
-              {/* Progress Bar */}
               <div className="w-full bg-slate-100 rounded-full h-1.5 mb-2">
                 <div 
                   className={`h-1.5 rounded-full transition-all duration-500 ${
@@ -293,21 +292,16 @@ export const OportunidadesView = () => {
                 />
               </div>
 
-              {/* ACTION BUTTONS */}
               <div className="flex gap-2 pt-2 items-center">
-                
-                {/* Botão Visualizar */}
                 <Button variant="ghost" size="icon" className="h-8 w-8 text-slate-400 hover:text-blue-600" onClick={() => setOpDetalhes(op)}>
                   <Eye className="w-4 h-4" />
                 </Button>
 
-                {/* Botão Editar (NOVO) */}
                 <Button variant="ghost" size="icon" className="h-8 w-8 text-slate-400 hover:text-accent-gold" 
                     onClick={() => { setOpEmEdicao(op); setShowForm(true); }}>
                   <Pencil className="w-4 h-4" />
                 </Button>
 
-                {/* Botão Cancelar/Perdida (NOVO) */}
                 {op.estagioFunil !== 'FECHADA' && op.estagioFunil !== 'PERDIDA' && (
                     <Button variant="ghost" size="icon" className="h-8 w-8 text-slate-400 hover:text-red-600" 
                         title="Cancelar Oportunidade"
@@ -316,14 +310,12 @@ export const OportunidadesView = () => {
                     </Button>
                 )}
 
-                 {/* Botão Deletar (Lixeira) */}
                  <Button variant="ghost" size="icon" className="h-8 w-8 text-slate-400 hover:text-red-600" onClick={() => setOpParaDeletar(op)}>
                   <Trash2 className="w-4 h-4" />
                 </Button>
 
                 <div className="flex-1"></div>
 
-                {/* Botão de Avançar ou Ganhar */}
                 {op.estagioFunil !== 'FECHADA' && op.estagioFunil !== 'PERDIDA' && (
                   op.estagioFunil === 'NEGOCIACAO' ? (
                       <Button 

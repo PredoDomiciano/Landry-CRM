@@ -32,36 +32,64 @@ const statusColors: Record<string, string> = {
 };
 
 export const PedidosView = () => {
-  const { pedidos, addPedido, updatePedido, deletePedido, updatePedidoStatus, addLog, currentUser, oportunidades } = useApp();
+  const { pedidos, produtos, addPedido, updatePedido, deletePedido, updatePedidoStatus, oportunidades, clientes } = useApp();
   const { toast } = useToast();
   
   const [searchTerm, setSearchTerm] = useState('');
-  const [statusFilter, setStatusFilter] = useState('ativos'); // Padrão: esconde entregues e cancelados
+  const [statusFilter, setStatusFilter] = useState('ativos'); 
   
   const [showForm, setShowForm] = useState(false);
   const [pedidoEmEdicao, setPedidoEmEdicao] = useState<Pedido | null>(null);
   const [pedidoParaDeletar, setPedidoParaDeletar] = useState<Pedido | null>(null);
 
+  const formatarDataDisplay = (dataString?: string) => {
+      if (!dataString) return '-';
+      const dataLimpa = dataString.split('T')[0];
+      const [ano, mes, dia] = dataLimpa.split('-');
+      return `${dia}/${mes}/${ano}`;
+  };
+
+  // --- BUSCA DE CLIENTE BLINDADA ---
   const getNomeCliente = (pedido: Pedido) => {
+    // 1. Tenta direto no objeto (se o backend mandou)
     const clienteDireto = pedido.oportunidade?.cliente as any;
     if (clienteDireto?.nome) return clienteDireto.nome;
     if (clienteDireto?.nomeDoComercio) return clienteDireto.nomeDoComercio;
 
+    // 2. Tenta achar a oportunidade na lista global (comparando como String para evitar erro de tipo)
     if (pedido.oportunidade?.idOportunidade) {
-        const op = oportunidades.find(o => o.idOportunidade === pedido.oportunidade?.idOportunidade);
-        const clienteOp = op?.cliente as any;
-        return clienteOp?.nome || clienteOp?.nomeDoComercio || 'Cliente Desconhecido';
+        const idOp = String(pedido.oportunidade.idOportunidade);
+        const opGlobal = oportunidades.find(o => String(o.idOportunidade) === idOp);
+        
+        if (opGlobal?.cliente) {
+            return (opGlobal.cliente as any).nome || (opGlobal.cliente as any).nomeDoComercio;
+        }
     }
 
     return 'Cliente Não Vinculado';
   };
 
+  // --- BUSCA DE ITENS BLINDADA ---
   const getResumoItens = (pedido: Pedido) => {
+    // Se a lista de itens estiver vazia ou nula
     if (!pedido.itens || pedido.itens.length === 0) return 'Sem itens';
-    return pedido.itens.map(item => `${item.quantidade}x ${(item as any).produto?.nome || 'Produto'}`).join(', ');
+    
+    return pedido.itens.map(item => {
+        // 1. Tenta nome direto
+        let nomeProd = (item as any).produto?.nome;
+        
+        // 2. Se não tiver nome, usa o ID para caçar na lista global de produtos
+        const idProd = (item as any).produto?.idProduto || (item as any).produtoId;
+        
+        if (!nomeProd && idProd) {
+            const prodGlobal = produtos.find(p => String(p.idProduto) === String(idProd));
+            if (prodGlobal) nomeProd = prodGlobal.nome;
+        }
+
+        return `${item.quantidade}x ${nomeProd || 'Produto #' + idProd}`;
+    }).join(', ');
   };
 
-  // --- LÓGICA DE FILTRO ATUALIZADA ---
   const filteredPedidos = pedidos.filter(pedido => {
     const searchLower = searchTerm.toLowerCase();
     const clienteNome = getNomeCliente(pedido).toLowerCase();
@@ -73,7 +101,6 @@ export const PedidosView = () => {
         
     let matchesStatus = true;
     if (statusFilter === 'ativos') {
-        // Esconde Entregue e Cancelado
         matchesStatus = pedido.status !== 'ENTREGUE' && pedido.status !== 'CANCELADO';
     } else if (statusFilter !== 'all') {
         matchesStatus = pedido.status === statusFilter;
@@ -115,7 +142,6 @@ export const PedidosView = () => {
     }
   };
 
-  // --- NOVO: CANCELAR PEDIDO ---
   const handleCancelarPedido = async (id: number) => {
       try {
           await updatePedidoStatus(id, 'CANCELADO');
@@ -222,7 +248,6 @@ export const PedidosView = () => {
                     </div>
                   </div>
                 </div>
-                {/* Badge usando o MAPA de Labels para remover underline */}
                 <Badge 
                   variant="outline" 
                   className={`${statusColors[pedido.status] || 'bg-slate-100'} border px-2 py-1 text-xs shrink-0`}
@@ -234,7 +259,7 @@ export const PedidosView = () => {
               <div className="mb-4 pl-[3.5rem]">
                  <div className="flex items-center text-xs text-muted-foreground gap-1 mb-1">
                     <Calendar className="w-3 h-3" />
-                    {new Date(pedido.data).toLocaleDateString('pt-BR')}
+                    {formatarDataDisplay(pedido.data)}
                  </div>
                  
                  <div className="bg-slate-50 p-2 rounded text-xs text-slate-600 flex gap-2 items-start">
@@ -255,7 +280,6 @@ export const PedidosView = () => {
                   <Pencil className="w-4 h-4" />
                 </Button>
                 
-                {/* Botão Cancelar Pedido (Novo) */}
                 {pedido.status !== 'CANCELADO' && pedido.status !== 'ENTREGUE' && (
                     <Button variant="ghost" size="icon" className="h-8 w-8 text-orange-500" title="Cancelar Pedido"
                         onClick={() => pedido.idPedido && handleCancelarPedido(pedido.idPedido)}>

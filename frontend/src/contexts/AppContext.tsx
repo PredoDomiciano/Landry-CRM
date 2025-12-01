@@ -109,7 +109,8 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         const userData = (data as any).user;
         setCurrentUser(userData || { email, nome: 'Usuário' }); 
         
-        await addLog({
+        // Tenta registrar log, mas sem travar o login se falhar
+        addLog({
             titulo: "Login Realizado",
             descricao: `Usuário ${email} acessou o sistema.`,
             data: new Date().toISOString(),
@@ -123,6 +124,24 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       console.error("Login falhou:", error);
       return false;
     }
+  };
+
+  // --- FUNÇÃO CORRIGIDA PARA EVITAR ERRO NA TELA ---
+  const addLog = async (log: Partial<Log>) => { 
+      try { 
+          const payload = {
+              ...log,
+              data: (log.data as any) instanceof Date ? (log.data as any).toISOString() : log.data
+          };
+          await logApi.create(payload as Log); 
+          // Opcional: Atualizar a lista de logs (pode ser removido para performance)
+          // await refreshData(); 
+      } catch (e) { 
+          // AQUI ESTÁ A CORREÇÃO:
+          // Em vez de "throw e" (que explode o erro na tela do usuário),
+          // nós apenas avisamos no console e deixamos o fluxo continuar.
+          console.warn("Aviso: Falha ao registrar log de auditoria (Backend pode estar bloqueando).", e);
+      } 
   };
 
   const addCliente = async (cliente: Partial<Cliente>) => { try { await clienteApi.create(cliente); await refreshData(); } catch (e) { throw e; } };
@@ -146,17 +165,6 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   const addOportunidade = async (op: Partial<Oportunidade>) => { try { await oportunidadeApi.create(op); await refreshData(); } catch (e) { throw e; } };
   const addFuncionario = async (func: Partial<Funcionario>) => { try { await funcionarioApi.create(func); await refreshData(); } catch (e) { throw e; } };
   
-  const addLog = async (log: Partial<Log>) => { 
-      try { 
-          const payload = {
-              ...log,
-              data: (log.data as any) instanceof Date ? (log.data as any).toISOString() : log.data
-          };
-          await logApi.create(payload as Log); 
-          await refreshData(); 
-      } catch (e) { throw e; } 
-  };
-
   const updateProduto = async (id: number, produto: Partial<Produto>) => { try { if (produtoApi.update) await produtoApi.update(id, produto); await refreshData(); } catch (e) { throw e; } };
   const deleteProduto = async (id: number) => { try { if (produtoApi.delete) await produtoApi.delete(id); await refreshData(); } catch (e) { throw e; } };
 
@@ -195,7 +203,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       deleteFuncionario, updateFuncionario,
       deletePedido, updatePedido,
       deleteOportunidade, updateOportunidade,
-      updateCliente, deleteCliente // <--- Exportados
+      updateCliente, deleteCliente 
     }}>
       {children}
     </AppContext.Provider>

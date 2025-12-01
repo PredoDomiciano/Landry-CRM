@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -12,7 +12,7 @@ interface OportunidadeFormProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSubmit: (op: any) => Promise<void>;
-  initialData?: Oportunidade | null; // Adicionado para aceitar dados de edição
+  initialData?: Oportunidade | null;
 }
 
 export const OportunidadeForm = ({ open, onOpenChange, onSubmit, initialData }: OportunidadeFormProps) => {
@@ -20,115 +20,164 @@ export const OportunidadeForm = ({ open, onOpenChange, onSubmit, initialData }: 
   const { clientes } = useApp();
   const [loading, setLoading] = useState(false);
 
-  const isEditing = !!initialData;
+  // Estados locais
+  const [nome, setNome] = useState('');
+  const [valor, setValor] = useState('');
+  const [estagio, setEstagio] = useState('PROSPECCAO');
+  const [dataFechamento, setDataFechamento] = useState('');
+  const [clienteId, setClienteId] = useState('');
 
-  // Helper para formatar data (YYYY-MM-DD) para o input
-  const formatDataInput = (dataString?: string) => {
-    if (!dataString) return '';
-    return dataString.split('T')[0];
-  };
+  // Trava de data (Hoje) para impedir datas passadas no calendário
+  const hoje = new Date().toISOString().split('T')[0];
+
+  useEffect(() => {
+    if (open) {
+      if (initialData) {
+        // Preenche os campos na edição
+        setNome(initialData.nomeOportunidade || '');
+        setValor(initialData.valorEstimado?.toString() || '');
+        setEstagio(initialData.estagioFunil || 'PROSPECCAO');
+        
+        // Formata a data para YYYY-MM-DD
+        if (initialData.dataDeFechamentoEstimada) {
+            setDataFechamento(initialData.dataDeFechamentoEstimada.split('T')[0]);
+        } else {
+            setDataFechamento('');
+        }
+
+        // Recupera o ID do cliente se existir
+        if (initialData.cliente?.idCliente) {
+            setClienteId(initialData.cliente.idCliente.toString());
+        }
+      } else {
+        // Limpa formulário se for nova oportunidade
+        setNome('');
+        setValor('');
+        setEstagio('PROSPECCAO');
+        setDataFechamento('');
+        setClienteId('');
+      }
+    }
+  }, [open, initialData]);
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setLoading(true);
 
-    const formData = new FormData(e.currentTarget);
-    
-    // 1. Achar o objeto cliente real baseado no ID selecionado
-    const clienteId = parseInt(formData.get('clienteId') as string);
-    const clienteSelecionado = clientes.find(c => c.idCliente === clienteId);
+    // Validação: Cliente é obrigatório
+    if (!clienteId) {
+        toast({ title: "Erro", description: "Selecione um cliente.", variant: "destructive" });
+        setLoading(false);
+        return;
+    }
 
-    // 2. Montar o payload
+    // Validação: Data não pode ser passada
+    if (dataFechamento < hoje) {
+        toast({ 
+            title: "Data Inválida", 
+            description: "A data de fechamento não pode ser no passado.", 
+            variant: "destructive" 
+        });
+        setLoading(false);
+        return;
+    }
+
+    // --- MONTAGEM DO PAYLOAD (PACOTE DE DADOS) ---
+    // Como o Backend usa a Entidade direta (sem DTO), 
+    // precisamos enviar a estrutura exata de Objeto.
     const oportunidadePayload = {
-      nomeOportunidade: formData.get('nome') as string,
-      valorEstimado: parseFloat(formData.get('valor') as string),
-      estagioFunil: formData.get('estagio') as string,
-      dataDeFechamentoEstimada: formData.get('data') as string,
-      cliente: clienteSelecionado 
+      nomeOportunidade: nome,
+      valorEstimado: parseFloat(valor),
+      estagioFunil: estagio,
+      dataDeFechamentoEstimada: dataFechamento,
+      
+      // IMPORTANTE: Enviamos como objeto aninhado
+      // O Java vai ler isso e entender que é o objeto ClienteEntity
+      cliente: { 
+          idCliente: parseInt(clienteId) 
+      }
     };
 
     try {
+      console.log("Enviando Oportunidade:", oportunidadePayload);
       await onSubmit(oportunidadePayload);
-      // O toast de sucesso agora é chamado no componente pai (View), 
-      // mas podemos manter um genérico aqui ou remover.
       onOpenChange(false);
     } catch (error) {
-      console.error(error);
-      toast({ title: "Erro", description: "Falha ao salvar.", variant: "destructive" });
+      console.error("Erro no form:", error);
+      toast({ title: "Erro", description: "Verifique os dados.", variant: "destructive" });
     } finally {
       setLoading(false);
     }
   };
 
-  // Helper para mostrar nome do cliente corretamente
+  // Helper para mostrar nome do cliente corretamente na lista
   const getClienteNome = (c: any) => c.nome || c.nomeDoComercio || `Cliente #${c.idCliente}`;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent>
+      <DialogContent className="sm:max-w-[500px]">
         <DialogHeader>
-            <DialogTitle>{isEditing ? 'Editar Oportunidade' : 'Nova Oportunidade'}</DialogTitle>
+            <DialogTitle>{initialData ? 'Editar Oportunidade' : 'Nova Oportunidade'}</DialogTitle>
         </DialogHeader>
         
-        {/* A Key força o formulário a recarregar se mudarmos de item, limpando os campos ou atualizando os dados */}
-        <form key={initialData?.idOportunidade || 'new'} onSubmit={handleSubmit} className="space-y-4">
+        <form onSubmit={handleSubmit} className="space-y-4">
           
+          {/* Seleção de Cliente */}
           <div className="space-y-2">
             <Label>Cliente *</Label>
-            {/* Se for edição, tentamos pegar o ID do cliente existente */}
-            <Select 
-                name="clienteId" 
-                required 
-                defaultValue={initialData?.cliente?.idCliente?.toString() || ""}
-            >
+            <Select value={clienteId} onValueChange={setClienteId} required>
               <SelectTrigger>
                 <SelectValue placeholder="Selecione o Cliente" />
               </SelectTrigger>
               <SelectContent>
                 {clientes.map(c => (
                   <SelectItem key={c.idCliente} value={c.idCliente?.toString() || ""}>
-                    {getClienteNome(c)} {c.cnpj ? `(${c.cnpj})` : ''}
+                    {getClienteNome(c)}
                   </SelectItem>
                 ))}
               </SelectContent>
             </Select>
           </div>
 
+          {/* Nome da Oportunidade */}
           <div className="space-y-2">
             <Label>Nome da Oportunidade *</Label>
             <Input 
-                name="nome" 
+                value={nome}
+                onChange={e => setNome(e.target.value)}
                 placeholder="Ex: Venda de Anel de Noivado" 
                 required 
-                defaultValue={initialData?.nomeOportunidade || ''}
             />
           </div>
 
+          {/* Valor e Data */}
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label>Valor Est. (R$)</Label>
               <Input 
-                name="valor" 
+                value={valor}
+                onChange={e => setValor(e.target.value)}
                 type="number" 
                 step="0.01" 
                 required 
-                defaultValue={initialData?.valorEstimado || ''}
               />
             </div>
             <div className="space-y-2">
               <Label>Data Fechamento</Label>
               <Input 
-                name="data" 
-                type="date" 
+                value={dataFechamento}
+                onChange={e => setDataFechamento(e.target.value)}
+                type="date"
+                min={hoje}
                 required 
-                defaultValue={formatDataInput(initialData?.dataDeFechamentoEstimada)}
               />
             </div>
           </div>
 
+          {/* Estágio do Funil */}
           <div className="space-y-2">
             <Label>Estágio *</Label>
-            <Select name="estagio" defaultValue={initialData?.estagioFunil || "PROSPECCAO"}>
+            <Select value={estagio} onValueChange={setEstagio}>
               <SelectTrigger><SelectValue /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="PROSPECCAO">Prospecção</SelectItem>
@@ -144,7 +193,7 @@ export const OportunidadeForm = ({ open, onOpenChange, onSubmit, initialData }: 
           <DialogFooter>
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Cancelar</Button>
             <Button type="submit" disabled={loading} className="bg-accent-gold hover:bg-yellow-600 text-white">
-                {isEditing ? 'Atualizar' : 'Salvar'}
+                {loading ? 'Salvando...' : (initialData ? 'Atualizar' : 'Salvar')}
             </Button>
           </DialogFooter>
         </form>
