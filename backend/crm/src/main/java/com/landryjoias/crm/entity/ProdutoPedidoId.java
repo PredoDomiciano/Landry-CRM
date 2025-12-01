@@ -12,10 +12,11 @@ import java.io.Serializable;
 @AllArgsConstructor
 @NoArgsConstructor
 public class ProdutoPedidoId implements Serializable {
-    @Column(name = "idPedido")
+
+    // Forçamos o nome snake_case aqui para bater com o padrão do banco
+    @Column(name = "id_pedido")
     private Integer idPedido;
 
-    @Column(name = "idProduto")
+    @Column(name = "id_produto")
     private Integer idProduto;
-
 }
