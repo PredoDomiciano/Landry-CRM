@@ -22,24 +22,24 @@ interface ProdutoItem {
   valor: number;
   tamanho: string;
   pedra?: string;
-  nomeProduto?: string; // Para exibir na lista visualmente
+  nomeProduto?: string; // Adicionado para visualização
 }
 
 export const PedidoForm = ({ open, onOpenChange, onSubmit, initialData }: PedidoFormProps) => {
   const { toast } = useToast();
-  // Adicionei 'clientes' aqui para poder listar no select
+  // Pegamos clientes, produtos e oportunidades do contexto
   const { produtos, oportunidades, clientes } = useApp(); 
   const [loading, setLoading] = useState(false);
   
   // Estados do Formulário
-  const [clienteId, setClienteId] = useState<string>(''); // Filtro de cliente
+  const [clienteId, setClienteId] = useState<string>(''); // Seleção do Cliente
   const [oportunidadeId, setOportunidadeId] = useState<string>('');
   const [status, setStatus] = useState<StatusPedido>('PENDENTE');
   const [itens, setItens] = useState<ProdutoItem[]>([
     { produtoId: 0, quantidade: 1, valor: 0, tamanho: '' }
   ]);
 
-  // Filtra as oportunidades baseadas no cliente selecionado
+  // Filtra as oportunidades: Mostra apenas as do cliente selecionado (ou todas se nenhum selecionado)
   const oportunidadesFiltradas = clienteId 
     ? oportunidades.filter(op => op.cliente?.idCliente?.toString() === clienteId)
     : oportunidades;
@@ -47,7 +47,7 @@ export const PedidoForm = ({ open, onOpenChange, onSubmit, initialData }: Pedido
   useEffect(() => {
     if (open) {
       if (initialData) {
-        // Tenta achar o cliente da oportunidade vinculada ao pedido
+        // 1. Tentar identificar o cliente pelo pedido existente
         const opVinculada = oportunidades.find(o => o.idOportunidade === initialData.oportunidade?.idOportunidade);
         if (opVinculada?.cliente?.idCliente) {
             setClienteId(opVinculada.cliente.idCliente.toString());
@@ -56,7 +56,7 @@ export const PedidoForm = ({ open, onOpenChange, onSubmit, initialData }: Pedido
         setOportunidadeId(initialData.oportunidade?.idOportunidade?.toString() || '');
         setStatus(initialData.status);
         
-        // Mapeia os itens existentes
+        // 2. Carregar itens e garantir que o nome do produto esteja lá
         if (initialData.itens && initialData.itens.length > 0) {
             const itensFormatados = initialData.itens.map((item: any) => ({
                 produtoId: item.produto?.idProduto || 0,
@@ -64,14 +64,14 @@ export const PedidoForm = ({ open, onOpenChange, onSubmit, initialData }: Pedido
                 valor: item.valor,
                 tamanho: item.tamanho || '',
                 pedra: item.pedra || '',
-                nomeProduto: item.produto?.nome // Recupera o nome para não ficar undefined
+                nomeProduto: item.produto?.nome // Recupera o nome para exibir
             }));
             setItens(itensFormatados);
         } else {
             setItens([{ produtoId: 0, quantidade: 1, valor: 0, tamanho: '' }]);
         }
       } else {
-        // Limpa para novo
+        // Limpa para novo pedido
         setClienteId('');
         setOportunidadeId('');
         setStatus('PENDENTE');
@@ -92,13 +92,14 @@ export const PedidoForm = ({ open, onOpenChange, onSubmit, initialData }: Pedido
     const newItens = [...itens];
     newItens[index] = { ...newItens[index], [field]: value };
     
-    // Se mudou o produto, preenche valor, tamanho e NOME automaticamente
+    // Se o usuário mudou o produto, atualizamos preço, tamanho e NOME automaticamente
     if (field === 'produtoId') {
       const produto = produtos.find(p => p.idProduto === value);
       if (produto) {
         newItens[index].valor = produto.valor;
+        // Converte tamanho para string de forma segura
         newItens[index].tamanho = typeof produto.tamanho === 'string' ? produto.tamanho : '';
-        newItens[index].nomeProduto = produto.nome; // Salva o nome para exibir no form
+        newItens[index].nomeProduto = produto.nome; // Salva o nome para a interface
       }
     }
     
@@ -124,25 +125,22 @@ export const PedidoForm = ({ open, onOpenChange, onSubmit, initialData }: Pedido
       ? oportunidades.find(o => o.idOportunidade === parseInt(oportunidadeId)) 
       : undefined;
 
-    // Monta o objeto para salvar
+    // --- CRIAÇÃO DO PACOTE DE DADOS (PAYLOAD) ---
     const pedidoPayload: any = {
       data: initialData ? initialData.data : new Date().toISOString(),
       status: status,
       valorTotal: calcularTotal(),
       oportunidade: oportunidade ? { 
           idOportunidade: oportunidade.idOportunidade,
-          // Passamos o cliente junto para garantir integridade no mock
-          cliente: oportunidade.cliente 
+          cliente: oportunidade.cliente // Envia o cliente junto para o Mock não perder a referência
       } : null,
       itens: itensValidos.map(item => {
-        // Busca o produto original para garantir que temos o NOME dele ao salvar
+        // Busca o produto original para pegar o NOME
         const prodOriginal = produtos.find(p => p.idProduto === item.produtoId);
-        
         return {
             produto: { 
                 idProduto: item.produtoId,
-                // AQUI ESTÁ A CORREÇÃO PRINCIPAL: Enviamos o nome junto!
-                nome: prodOriginal?.nome || 'Produto Sem Nome' 
+                nome: prodOriginal?.nome || 'Produto Sem Nome' // <--- AQUI RESOLVE O "UNDEFINED"
             }, 
             quantidade: item.quantidade,
             tamanho: item.tamanho || 'U',
@@ -155,6 +153,7 @@ export const PedidoForm = ({ open, onOpenChange, onSubmit, initialData }: Pedido
     try {
       await onSubmit(pedidoPayload);
       toast({ title: "Sucesso!", description: "Pedido salvo com sucesso." });
+      // Não precisamos fechar aqui, a View fecha o modal
     } catch (error) {
       console.error(error);
       toast({ title: "Erro", description: "Falha ao salvar.", variant: "destructive" });
@@ -168,13 +167,13 @@ export const PedidoForm = ({ open, onOpenChange, onSubmit, initialData }: Pedido
       <DialogContent className="sm:max-w-[800px] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>{initialData ? `Editar Pedido #${initialData.idPedido}` : 'Novo Pedido'}</DialogTitle>
-          <DialogDescription>Registre uma venda e adicione os produtos.</DialogDescription>
+          <DialogDescription>Selecione o cliente e adicione os produtos.</DialogDescription>
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="grid grid-cols-2 gap-4">
             
-            {/* SELEÇÃO DE CLIENTE (Novo Campo) */}
+            {/* NOVO CAMPO: Seleção de Cliente */}
             <div className="space-y-2 col-span-2">
               <Label htmlFor="clienteId" className="flex items-center gap-2">
                 <User className="w-4 h-4" /> Cliente (Quem fez o pedido?)
@@ -195,14 +194,14 @@ export const PedidoForm = ({ open, onOpenChange, onSubmit, initialData }: Pedido
 
             {/* Oportunidade (Filtrada) */}
             <div className="space-y-2">
-              <Label htmlFor="oportunidadeId">Vincular a Oportunidade *</Label>
+              <Label htmlFor="oportunidadeId">Vincular a Negociação *</Label>
               <Select value={oportunidadeId} onValueChange={setOportunidadeId} required>
                 <SelectTrigger>
-                  <SelectValue placeholder={clienteId ? "Selecione a negociação" : "Selecione um cliente primeiro"} />
+                  <SelectValue placeholder={clienteId ? "Selecione a oportunidade" : "Selecione um cliente primeiro"} />
                 </SelectTrigger>
                 <SelectContent>
                   {oportunidadesFiltradas.length === 0 ? (
-                     <SelectItem value="disabled" disabled>Nenhuma oportunidade para este cliente</SelectItem>
+                     <SelectItem value="disabled" disabled>Nenhuma oportunidade encontrada</SelectItem>
                   ) : (
                     oportunidadesFiltradas.map((op) => (
                         <SelectItem key={op.idOportunidade} value={op.idOportunidade?.toString() || ''}>

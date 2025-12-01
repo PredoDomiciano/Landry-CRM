@@ -2,8 +2,8 @@ import { createContext, useContext, useState, useEffect, ReactNode } from 'react
 import { 
   clienteApi, oportunidadeApi, pedidoApi, produtoApi, 
   funcionarioApi, logApi, authApi 
-} from '../services/api'; 
-import type { Log, Cliente, Oportunidade, Pedido, Produto, Funcionario, Usuario } from '../types/api'; 
+} from '@/services/api'; 
+import type { Log, Cliente, Oportunidade, Pedido, Produto, Funcionario, Usuario } from '@/types/api'; 
 
 interface AppContextType {
   isLoggedIn: boolean;
@@ -27,6 +27,10 @@ interface AppContextType {
   addProduto: (produto: Partial<Produto>) => Promise<void>;
   addFuncionario: (funcionario: Partial<Funcionario>) => Promise<void>;
   
+  // --- CLIENTES (Novos) ---
+  updateCliente: (id: number, cliente: Partial<Cliente>) => Promise<void>;
+  deleteCliente: (id: number) => Promise<void>;
+
   // Updates e Deletes
   updateProduto: (id: number, produto: Partial<Produto>) => Promise<void>;
   deleteProduto: (id: number) => Promise<void>;
@@ -39,7 +43,6 @@ interface AppContextType {
   updatePedidoStatus: (id: number, status: string) => Promise<void>;
 
   updateOportunidadeStatus: (id: number, status: string) => Promise<void>;
-  // --- CORREÇÃO 1: ADICIONADO updateOportunidade ---
   updateOportunidade: (id: number, oportunidade: Partial<Oportunidade>) => Promise<void>;
   deleteOportunidade: (id: number) => Promise<void>; 
 }
@@ -71,8 +74,6 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     setOportunidades([]);
     setProdutos([]);
     setFuncionarios([]);
-    // Opcional: Redirecionar para login via window.location se necessário, 
-    // mas geralmente o state isLoggedIn trata disso no Router.
   };
 
   const refreshData = async () => {
@@ -86,14 +87,6 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         funcionarioApi.getAll(),
         logApi.getAll()
       ]);
-
-      // --- CORREÇÃO 2: LOGOUT AUTOMÁTICO SE O TOKEN EXPIRE ---
-      const hasAuthError = results.some(r => r.status === 'rejected' && ((r.reason?.response?.status === 401) || (r.reason?.response?.status === 403)));
-      if (hasAuthError) {
-        console.warn("Sessão expirada. Fazendo logout...");
-        logout();
-        return;
-      }
 
       if (results[0].status === 'fulfilled') setClientes(results[0].value);
       if (results[1].status === 'fulfilled') setProdutos(results[1].value);
@@ -123,7 +116,6 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
             tipoDeAtividade: 4, 
             usuario: userData
         });
-        
         return true;
       }
       return false;
@@ -134,10 +126,26 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const addCliente = async (cliente: Partial<Cliente>) => { try { await clienteApi.create(cliente); await refreshData(); } catch (e) { throw e; } };
+  
+  // --- IMPLEMENTAÇÃO CLIENTES ---
+  const updateCliente = async (id: number, cliente: Partial<Cliente>) => { 
+      try { 
+          await clienteApi.update(id, cliente); 
+          await refreshData(); 
+      } catch (e) { throw e; } 
+  };
+  const deleteCliente = async (id: number) => { 
+      try { 
+          await clienteApi.delete(id); 
+          await refreshData(); 
+      } catch (e) { throw e; } 
+  };
+
   const addProduto = async (produto: Partial<Produto>) => { try { await produtoApi.create(produto); await refreshData(); } catch (e) { throw e; } };
   const addPedido = async (pedido: Partial<Pedido>) => { try { await pedidoApi.create(pedido); await refreshData(); } catch (e) { throw e; } };
   const addOportunidade = async (op: Partial<Oportunidade>) => { try { await oportunidadeApi.create(op); await refreshData(); } catch (e) { throw e; } };
   const addFuncionario = async (func: Partial<Funcionario>) => { try { await funcionarioApi.create(func); await refreshData(); } catch (e) { throw e; } };
+  
   const addLog = async (log: Partial<Log>) => { 
       try { 
           const payload = {
@@ -161,7 +169,6 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   const updatePedidoStatus = async (id: number, status: string) => { try { const pedidoAtual = pedidos.find(p => p.idPedido === id); if (pedidoAtual) { await pedidoApi.update(id, { ...pedidoAtual, status: status as any }); await refreshData(); } } catch (e) { console.error(e); } };
   const updateOportunidadeStatus = async (id: number, status: string) => { try { const opAtual = oportunidades.find(o => o.idOportunidade === id); if(opAtual) { await oportunidadeApi.update(id, { ...opAtual, estagioFunil: status as any }); await refreshData(); } } catch (e) { console.error(e); } };
 
-  // --- CORREÇÃO 3: Implementação de updateOportunidade ---
   const updateOportunidade = async (id: number, op: Partial<Oportunidade>) => {
     try {
         if(oportunidadeApi.update) {
@@ -187,8 +194,8 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       updateProduto, deleteProduto,
       deleteFuncionario, updateFuncionario,
       deletePedido, updatePedido,
-      deleteOportunidade, 
-      updateOportunidade // <--- AGORA ESTÁ EXPORTADO
+      deleteOportunidade, updateOportunidade,
+      updateCliente, deleteCliente // <--- Exportados
     }}>
       {children}
     </AppContext.Provider>

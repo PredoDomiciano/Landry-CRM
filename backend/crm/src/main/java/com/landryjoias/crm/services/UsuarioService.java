@@ -7,7 +7,7 @@ import com.landryjoias.crm.repository.UsuarioRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
-
+import org.springframework.security.crypto.password.PasswordEncoder;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
@@ -17,19 +17,26 @@ import java.util.Optional;
 public class UsuarioService {
     private final UsuarioRepository usuarioRepository;
     private final LogRepository logRepository;
+    private final PasswordEncoder passwordEncoder;
 
     public UsuarioEntity incluir(UsuarioEntity usuario) {
-        UsuarioEntity salvo = usuarioRepository.save(usuario);
-        registrarLog("Usuário Criado", "Novo login criado para: " + salvo.getEmail() + " por " + getUsuarioLogadoEmail());
-        return salvo;
-    }
+    usuario.setSenha(passwordEncoder.encode(usuario.getSenha())); // <-- Encripta ANTES
+    UsuarioEntity salvo = usuarioRepository.save(usuario);
+
+    registrarLog("Usuário Criado",
+        "Novo login criado para: " + salvo.getEmail()
+        + " por " + getUsuarioLogadoEmail());
+
+    return salvo;
+}
+
 
     public UsuarioEntity editar(int id, UsuarioEntity usuario) {
         Optional<UsuarioEntity> usuarioExistente = usuarioRepository.findById(id);
         if (usuarioExistente.isPresent()) {
             UsuarioEntity usuarioAtualizado = usuarioExistente.get();
             usuarioAtualizado.setEmail(usuario.getEmail());
-            usuarioAtualizado.setSenha(usuario.getSenha());
+            usuarioAtualizado.setSenha(passwordEncoder.encode(usuario.getSenha()));
             usuarioAtualizado.setNivelAcesso(usuario.getNivelAcesso());
             
             UsuarioEntity salvo = usuarioRepository.save(usuarioAtualizado);

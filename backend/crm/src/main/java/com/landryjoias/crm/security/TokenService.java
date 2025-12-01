@@ -16,7 +16,7 @@ public class TokenService {
 
     // --- CORREÇÃO: Chave Fixa e Longa (Deve ter mais de 32 caracteres para HS256) ---
     // Assim o token não morre quando reinicias o servidor
-    private static final String SECRET_STRING = "UmaSenhaMuitoSeguraParaOProjetoLandryJoias2024CRM";
+    private static final String SECRET_STRING = "UmaSenhaMuitoSeguraParaOProjetoLandryJoias2025CRM";
     
     private final Key key = Keys.hmacShaKeyFor(SECRET_STRING.getBytes(StandardCharsets.UTF_8));
 
