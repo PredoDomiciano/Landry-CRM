@@ -89,29 +89,30 @@ export const OportunidadesView = () => {
     try {
         await deleteOportunidade(opParaDeletar.idOportunidade);
         toast({ title: "Removida", description: "Oportunidade excluída com sucesso." });
-    } catch (error) {
-        toast({ title: "Erro", description: "Erro ao excluir oportunidade.", variant: "destructive" });
+    } catch (error: any) {
+        // CORREÇÃO: Mostra a mensagem exata do erro (ex: vinculo com pedido)
+        toast({ 
+            title: "Não foi possível excluir", 
+            description: error.message || "Verifique se essa oportunidade gerou pedidos ou tem registros vinculados.", 
+            variant: "destructive" 
+        });
     } finally {
         setOpParaDeletar(null);
     }
   };
 
-  // --- CORREÇÃO AQUI ---
   const handleGanharOportunidade = async (op: Oportunidade) => {
     if(!op.idOportunidade) return;
 
     try {
-        // 1. Atualiza status para FECHADA
         await updateOportunidadeStatus(op.idOportunidade, 'FECHADA');
 
-        // 2. Cria o Pedido automaticamente com DATA CORRETA
-        const hojeFormatado = new Date().toISOString().split('T')[0]; // Formato YYYY-MM-DD
+        const hojeFormatado = new Date().toISOString().split('T')[0];
 
         const novoPedido: Partial<Pedido> = {
-            data: hojeFormatado, // <--- Aqui estava o problema
+            data: hojeFormatado,
             valorTotal: op.valorEstimado,
             status: 'PENDENTE',
-            // Envia apenas o ID para evitar erro de referência circular
             oportunidade: { idOportunidade: op.idOportunidade } as any 
         };
 

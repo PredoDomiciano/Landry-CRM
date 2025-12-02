@@ -10,7 +10,6 @@ import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
-import org.springframework.security.crypto.password.NoOpPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
@@ -35,14 +34,14 @@ public class SecurityConfig {
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
                 .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(req -> {
+                    // --- CORREÇÃO DO ERRO 403 ---
+                    // Libera o método OPTIONS (usado pelo navegador para verificar permissões antes do DELETE)
+                    req.requestMatchers(HttpMethod.OPTIONS, "/**").permitAll();
 
                     // ENDPOINTS LIBERADOS
                     req.requestMatchers("/auth/**").permitAll();
                     req.requestMatchers("/v3/api-docs/**", "/swagger-ui.html", "/swagger-ui/**").permitAll();
-
-                    // LIBERA APENAS O POST /usuarios PARA CRIAR USUÁRIO SEM TOKEN
                     req.requestMatchers(HttpMethod.GET, "/relatorios/**").permitAll();
-
                     req.requestMatchers(HttpMethod.POST, "/usuarios").permitAll();
 
                     // TUDO RESTANTE REQUER TOKEN
@@ -55,13 +54,16 @@ public class SecurityConfig {
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
-        // Permite a porta do React (Geralmente 5173 para Vite
-        // Se seu front estiver em outra porta, adicione aqui.
-        configuration.setAllowedOrigins(
-                Arrays.asList("http://localhost:5173", "http://localhost:3000", "http://localhost:8080"));
+        
+        // CORREÇÃO: Usamos allowPattern para aceitar qualquer origem em desenvolvimento
+        // Isso evita erros se estiveres usando localhost, IP de rede ou portas diferentes
+        configuration.setAllowedOriginPatterns(List.of("*")); 
+        
         configuration.setAllowedMethods(
                 Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS", "HEAD", "TRACE", "CONNECT"));
-        configuration.setAllowedHeaders(List.of("Authorization", "Content-Type"));
+        
+        configuration.setAllowedHeaders(List.of("*")); // Permite todos os cabeçalhos
+        configuration.setAllowCredentials(true);
 
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", configuration);

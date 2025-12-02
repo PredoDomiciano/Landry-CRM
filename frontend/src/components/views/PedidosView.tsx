@@ -49,43 +49,30 @@ export const PedidosView = () => {
       return `${dia}/${mes}/${ano}`;
   };
 
-  // --- BUSCA DE CLIENTE BLINDADA ---
   const getNomeCliente = (pedido: Pedido) => {
-    // 1. Tenta direto no objeto (se o backend mandou)
     const clienteDireto = pedido.oportunidade?.cliente as any;
     if (clienteDireto?.nome) return clienteDireto.nome;
     if (clienteDireto?.nomeDoComercio) return clienteDireto.nomeDoComercio;
 
-    // 2. Tenta achar a oportunidade na lista global (comparando como String para evitar erro de tipo)
     if (pedido.oportunidade?.idOportunidade) {
         const idOp = String(pedido.oportunidade.idOportunidade);
         const opGlobal = oportunidades.find(o => String(o.idOportunidade) === idOp);
-        
         if (opGlobal?.cliente) {
             return (opGlobal.cliente as any).nome || (opGlobal.cliente as any).nomeDoComercio;
         }
     }
-
     return 'Cliente Não Vinculado';
   };
 
-  // --- BUSCA DE ITENS BLINDADA ---
   const getResumoItens = (pedido: Pedido) => {
-    // Se a lista de itens estiver vazia ou nula
     if (!pedido.itens || pedido.itens.length === 0) return 'Sem itens';
-    
     return pedido.itens.map(item => {
-        // 1. Tenta nome direto
         let nomeProd = (item as any).produto?.nome;
-        
-        // 2. Se não tiver nome, usa o ID para caçar na lista global de produtos
         const idProd = (item as any).produto?.idProduto || (item as any).produtoId;
-        
         if (!nomeProd && idProd) {
             const prodGlobal = produtos.find(p => String(p.idProduto) === String(idProd));
             if (prodGlobal) nomeProd = prodGlobal.nome;
         }
-
         return `${item.quantidade}x ${nomeProd || 'Produto #' + idProd}`;
     }).join(', ');
   };
@@ -114,14 +101,17 @@ export const PedidosView = () => {
       if (pedidoEmEdicao && pedidoEmEdicao.idPedido) {
         if (updatePedido) {
             await updatePedido(pedidoEmEdicao.idPedido, dados);
+            toast({ title: "Sucesso", description: "Pedido atualizado." });
         }
       } else {
         await addPedido(dados);
+        toast({ title: "Sucesso", description: "Pedido criado." });
       }
       setShowForm(false);
       setPedidoEmEdicao(null);
     } catch (error) {
        console.error(error);
+       toast({ title: "Erro", description: "Falha ao salvar pedido.", variant: "destructive" });
     }
   };
 
@@ -134,9 +124,14 @@ export const PedidosView = () => {
     if (!pedidoParaDeletar || !deletePedido || !pedidoParaDeletar.idPedido) return;
     try {
         await deletePedido(pedidoParaDeletar.idPedido);
-        toast({ title: "Removido", description: "Pedido excluído." });
-    } catch (error) {
-        toast({ title: "Erro", description: "Erro ao excluir pedido.", variant: "destructive" });
+        toast({ title: "Removido", description: "Pedido e seus itens foram excluídos." });
+    } catch (error: any) {
+        // CORREÇÃO: Mostra o motivo real se falhar
+        toast({ 
+            title: "Não foi possível excluir", 
+            description: error.message || "Erro desconhecido ao excluir pedido.", 
+            variant: "destructive" 
+        });
     } finally {
         setPedidoParaDeletar(null);
     }
@@ -156,6 +151,7 @@ export const PedidosView = () => {
     const index = fluxo.indexOf(currentStatus);
     if (index >= 0 && index < fluxo.length - 1) {
       await updatePedidoStatus(id, fluxo[index + 1]);
+      toast({ title: "Status Atualizado", description: `Pedido avançou para ${fluxo[index + 1]}` });
     }
   };
 

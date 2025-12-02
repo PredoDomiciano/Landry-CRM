@@ -5,8 +5,11 @@ import com.landryjoias.crm.entity.*;
 import com.landryjoias.crm.repository.*;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
+import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.http.HttpStatus;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -20,12 +23,11 @@ public class PedidosService {
     private final ProdutosRepository produtosRepository;
     private final OportunidadesRepository oportunidadesRepository;
     private final LogRepository logRepository;
-    private final UsuarioRepository usuarioRepository; // Necessário para o Log funcionar
+    private final UsuarioRepository usuarioRepository;
 
     @Transactional
     public PedidosEntity incluir(PedidoDTO dto) {
-        
-        // 1. Criar e Salvar o Cabeçalho (Vazio de itens inicialmente)
+        // 1. Criar e Salvar o Cabeçalho
         PedidosEntity pedido = new PedidosEntity();
         pedido.setData(dto.getData());
         pedido.setStatus(dto.getStatus());
@@ -39,20 +41,11 @@ public class PedidosService {
 
         PedidosEntity pedidoSalvo = pedidosRepository.save(pedido);
 
-        // 2. Salvar os Itens um a um
+        // 2. Salvar os Itens
         if (dto.getItens() != null && !dto.getItens().isEmpty()) {
             for (PedidoDTO.ItemPedidoDTO itemDto : dto.getItens()) {
-                
                 ProdutosEntity produto = produtosRepository.findById(itemDto.getIdProduto())
                         .orElseThrow(() -> new RuntimeException("Produto não encontrado ID: " + itemDto.getIdProduto()));
-
-                // Baixa de Estoque
-                if (produto.getQuantidadeEstoque() < itemDto.getQuantidade()) {
-                    throw new RuntimeException("Estoque insuficiente: " + produto.getNome());
-                }
-                // (Opcional) Se quiseres baixar o estoque realmente, descomenta:
-                // produto.setQuantidadeEstoque(produto.getQuantidadeEstoque() - itemDto.getQuantidade());
-                // produtosRepository.save(produto);
 
                 ProdutoPedidoEntity itemEntity = new ProdutoPedidoEntity();
                 ProdutoPedidoId id = new ProdutoPedidoId(pedidoSalvo.getIdPedido(), produto.getIdProduto());
@@ -77,10 +70,6 @@ public class PedidosService {
 
         registrarLog("Pedido Criado", "Pedido #" + pedidoSalvo.getIdPedido() + " criado com sucesso.");
         
-        // --- A GRANDE CORREÇÃO (O RELOAD) ---
-        // Em vez de retornar 'pedidoSalvo' (que está incompleto na memória),
-        // buscamos o pedido completo no banco de dados. 
-        // Como o PedidosEntity tem FetchType.EAGER, ele vai trazer os itens e o cliente agora.
         return pedidosRepository.findById(pedidoSalvo.getIdPedido())
                 .orElse(pedidoSalvo);
     }
@@ -96,11 +85,8 @@ public class PedidosService {
             atual.setStatus(pedidos.getStatus());
             
             PedidosEntity salvo = this.pedidosRepository.save(atual);
-
-            registrarLog("Pedido Editado", 
-                "Pedido #" + id + " status: " + statusAntigo + " -> " + pedidos.getStatus());
-
-            // Também fazemos reload aqui para garantir
+            registrarLog("Pedido Editado", "Pedido #" + id + " status: " + statusAntigo + " -> " + pedidos.getStatus());
+            
             return pedidosRepository.findById(salvo.getIdPedido()).orElse(salvo);
         }
         return null;
@@ -110,20 +96,55 @@ public class PedidosService {
         return this.pedidosRepository.findAll();
     }
 
+    // --- EXCLUSÃO BLINDADA ---
+    @Transactional
     public void excluir(Integer id) {
-        if (pedidosRepository.existsById(id)) {
-            pedidosRepository.deleteById(id);
-            registrarLog("Pedido Excluído", "Pedido #" + id + " foi excluído.");
+        // 1. Verificação de Permissão (ADMIN ou GERENTE)
+        UsuarioEntity usuarioLogado = getUsuarioReal();
+        if (usuarioLogado != null) {
+             NivelAcesso nivel = usuarioLogado.getNivelAcesso();
+             boolean podeExcluir = nivel == NivelAcesso.ADMINISTRADOR || nivel == NivelAcesso.GERENTE;
+             if (!podeExcluir) {
+                 throw new ResponseStatusException(HttpStatus.FORBIDDEN, 
+                     "Acesso Negado: Apenas Gerentes e Admins podem excluir pedidos.");
+             }
+        }
+
+        // 2. Lógica de Exclusão
+        Optional<PedidosEntity> pedidoOpt = pedidosRepository.findById(id);
+        
+        if (pedidoOpt.isPresent()) {
+            PedidosEntity pedido = pedidoOpt.get();
+            try {
+                // PASSO CRUCIAL: Apagar os itens do pedido ANTES de apagar o pedido
+                // Isso evita o erro de chave estrangeira (FK)
+                if (pedido.getItens() != null && !pedido.getItens().isEmpty()) {
+                    itemRepository.deleteAll(pedido.getItens());
+                }
+
+                pedidosRepository.delete(pedido);
+                pedidosRepository.flush(); // Força o banco a confirmar a exclusão agora
+
+                registrarLog("Pedido Excluído", "Pedido #" + id + " removido permanentemente.");
+            
+            } catch (DataIntegrityViolationException e) {
+                throw new ResponseStatusException(HttpStatus.CONFLICT, 
+                    "Não é possível excluir: O pedido possui vínculos no sistema.");
+            } catch (Exception e) {
+                throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, 
+                    "Erro ao excluir pedido: " + e.getMessage());
+            }
+        } else {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Pedido não encontrado.");
         }
     }
 
-    // --- LOGS (CORRIGIDO PARA EVITAR ERRO 500) ---
+    // --- MÉTODOS AUXILIARES ---
     private UsuarioEntity getUsuarioReal() {
         try {
             var auth = SecurityContextHolder.getContext().getAuthentication();
             if (auth != null && auth.getPrincipal() instanceof UsuarioEntity) {
                 UsuarioEntity userMemoria = (UsuarioEntity) auth.getPrincipal();
-                // Busca o usuário oficial no banco para evitar erro de "Transient Instance"
                 return usuarioRepository.findByEmail(userMemoria.getEmail()).orElse(null);
             }
             return null;
@@ -136,17 +157,14 @@ public class PedidosService {
             log.setTitulo(titulo);
             log.setTipoDeAtividade(4);
             log.setAssunto("Gestão de Pedidos");
-            
             UsuarioEntity usuarioReal = getUsuarioReal();
             String nomeUser = usuarioReal != null ? usuarioReal.getEmail() : "Sistema";
-            
             log.setDescricao(descricao + " por " + nomeUser);
             log.setData(LocalDateTime.now());
             log.setUsuario(usuarioReal);
-            
             logRepository.save(log);
         } catch (Exception e) {
-            System.err.println("Erro ao salvar log (não crítico): " + e.getMessage());
+            System.err.println("Erro ao salvar log: " + e.getMessage());
         }
     }
 }

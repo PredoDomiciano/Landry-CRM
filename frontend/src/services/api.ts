@@ -64,7 +64,8 @@ export const clienteApi = {
   getById: (id: number) => fetchApi<Cliente>(`${API_ENDPOINTS.clientes}/${id}`),
   create: (c: Partial<Cliente>) => fetchApi<Cliente>(API_ENDPOINTS.clientes, { method: 'POST', body: JSON.stringify(c) }),
   update: (id: number, c: Partial<Cliente>) => fetchApi<Cliente>(`${API_ENDPOINTS.clientes}/${id}`, { method: 'PUT', body: JSON.stringify(c) }),
-  delete: (id: number) => fetchApi<void>(`${API_ENDPOINTS.clientes}/${id}`, { method: 'DELETE' }),
+  // ATUALIZAÇÃO: Garante que o ID é número
+  delete: (id: number) => fetchApi<void>(`${API_ENDPOINTS.clientes}/${Number(id)}`, { method: 'DELETE' }),
 };
 
 export const produtoApi = {

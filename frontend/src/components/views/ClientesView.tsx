@@ -67,8 +67,14 @@ export const ClientesView = () => {
     try {
       await deleteCliente(clienteParaDeletar.idCliente);
       toast({ title: "Removido", description: `Cliente excluído com sucesso.` });
-    } catch (error) {
-      toast({ title: "Erro", description: "Não foi possível excluir o cliente.", variant: "destructive" });
+    } catch (error: any) {
+      console.error("Erro ao excluir:", error);
+      // CORREÇÃO AQUI: Mostra a mensagem real do backend (ex: erro de foreign key)
+      toast({ 
+        title: "Erro ao excluir", 
+        description: error.message || "O banco de dados impediu a exclusão (verifique vínculos).", 
+        variant: "destructive" 
+      });
     } finally {
       setClienteParaDeletar(null);
     }

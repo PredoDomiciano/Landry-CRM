@@ -49,8 +49,11 @@ public class ClienteController {
         }
     }
 
-    @DeleteMapping("/{id}")
+@DeleteMapping("/{id}")
     public ResponseEntity<Void> excluir(@PathVariable int id) {
+        // Esta mensagem vai aparecer no terminal do backend se o pedido passar pela segurança
+        System.out.println("TENTATIVA DE EXCLUIR CLIENTE ID: " + id); 
+        
         clienteService.excluir(id);
         return new ResponseEntity<>(HttpStatus.NO_CONTENT);
     }
