@@ -3,7 +3,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { useToast } from '@/hooks/use-toast';
+import { useToast } from '@/hooks/use-toast'; // Verifique se o caminho do seu toast está correto
 import type { Cliente } from '@/types/api';
 
 interface ClienteFormProps {
@@ -12,6 +12,33 @@ interface ClienteFormProps {
   onSubmit: (cliente: any) => Promise<void>;
   initialData?: Cliente | null;
 }
+
+// --- FUNÇÃO AUXILIAR DE MÁSCARA (Fica fora do componente para ser reutilizada) ---
+const aplicarMascaraCpfCnpj = (valor: string | number | null | undefined) => {
+  if (!valor) return '';
+  
+  // 1. Garante que é string e remove tudo que não é dígito
+  let v = String(valor).replace(/\D/g, ''); 
+  
+  // Limita tamanho máximo (CNPJ = 14)
+  if (v.length > 14) v = v.slice(0, 14);
+
+  // 2. Aplica a máscara baseada no tamanho
+  if (v.length > 11) {
+    // Máscara CNPJ: 00.000.000/0000-00
+    v = v.replace(/^(\d{2})(\d)/, '$1.$2');
+    v = v.replace(/^(\d{2})\.(\d{3})(\d)/, '$1.$2.$3');
+    v = v.replace(/\.(\d{3})(\d)/, '.$1/$2');
+    v = v.replace(/(\d{4})(\d)/, '$1-$2');
+  } else {
+    // Máscara CPF: 000.000.000-00
+    v = v.replace(/(\d{3})(\d)/, '$1.$2');
+    v = v.replace(/(\d{3})(\d)/, '$1.$2');
+    v = v.replace(/(\d{3})(\d{1,2})$/, '$1-$2');
+  }
+  
+  return v;
+};
 
 export const ClienteForm = ({ open, onOpenChange, onSubmit, initialData }: ClienteFormProps) => {
   const { toast } = useToast();
@@ -37,7 +64,9 @@ export const ClienteForm = ({ open, onOpenChange, onSubmit, initialData }: Clien
         setNome(dados.nome || dados.nomeDoComercio || '');
         setEmail(dados.email || '');
         setTelefone(dados.telefone || '');
-        setCpf(dados.cpf || dados.cnpj || '');
+        
+        // --- CORREÇÃO AQUI: Aplica a máscara no dado que vem do banco ---
+        setCpf(aplicarMascaraCpfCnpj(dados.cpf || dados.cnpj || ''));
         
         const contato = dados.contato || dados;
         setRua(contato.rua || '');
@@ -46,6 +75,7 @@ export const ClienteForm = ({ open, onOpenChange, onSubmit, initialData }: Clien
         setCidade(contato.cidade || '');
         setCep(contato.cep || '');
       } else {
+        // Limpar tudo para novo cadastro
         setNome('');
         setEmail('');
         setTelefone('');
@@ -59,26 +89,11 @@ export const ClienteForm = ({ open, onOpenChange, onSubmit, initialData }: Clien
     }
   }, [open, initialData]);
 
-  // --- MÁSCARAS DE INPUT ---
+  // --- HANDLERS DE INPUT ---
   const handleCpfCnpjChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    let value = e.target.value.replace(/\D/g, ''); // Remove tudo que não é dígito
-    
-    if (value.length > 14) value = value.slice(0, 14); // Limita a 14 dígitos (CNPJ)
-
-    if (value.length <= 11) {
-      // Máscara CPF: 000.000.000-00
-      value = value.replace(/(\d{3})(\d)/, '$1.$2');
-      value = value.replace(/(\d{3})(\d)/, '$1.$2');
-      value = value.replace(/(\d{3})(\d{1,2})$/, '$1-$2');
-    } else {
-      // Máscara CNPJ: 00.000.000/0000-00
-      value = value.replace(/^(\d{2})(\d)/, '$1.$2');
-      value = value.replace(/^(\d{2})\.(\d{3})(\d)/, '$1.$2.$3');
-      value = value.replace(/\.(\d{3})(\d)/, '.$1/$2');
-      value = value.replace(/(\d{4})(\d)/, '$1-$2');
-    }
-    
-    setCpf(value);
+    // Usa a mesma função de máscara para garantir consistência
+    const valorFormatado = aplicarMascaraCpfCnpj(e.target.value);
+    setCpf(valorFormatado);
   };
 
   const handleTelefoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -104,20 +119,22 @@ export const ClienteForm = ({ open, onOpenChange, onSubmit, initialData }: Clien
     e.preventDefault();
     setLoading(true);
 
+    // Função apenas para checar o tamanho e decidir se é CPF ou CNPJ
     const limpaFormatacao = (val: string) => val.replace(/\D/g, '');
-
-    const cpfLimpo = limpaFormatacao(cpf);
-    const isCnpj = cpfLimpo.length > 11;
+    const apenasNumeros = limpaFormatacao(cpf);
+    const isCnpj = apenasNumeros.length > 11;
 
     const clientePayload = {
       nome: nome,
       nomeDoComercio: nome,
       email: email,
-      telefone: telefone, // Pode mandar formatado ou limpar aqui também se preferir
+      telefone: telefone, 
       
-      // Define se vai para o campo CPF ou CNPJ baseado no tamanho
-      cpf: !isCnpj ? cpf : '',
-      cnpj: isCnpj ? cpf : '',
+      // --- ALTERAÇÃO AQUI ---
+      // Agora enviamos a variável 'cpf' (que contém a formatação)
+      // em vez de 'cpfLimpo' ou 'apenasNumeros'.
+      cpf: !isCnpj ? cpf : null,  // Envia "123.456.789-00"
+      cnpj: isCnpj ? cpf : null,  // Envia "12.345.678/0001-90"
       
       rua: rua,
       numeroCasa: numeroCasa,
@@ -145,7 +162,7 @@ export const ClienteForm = ({ open, onOpenChange, onSubmit, initialData }: Clien
       setLoading(false);
     }
   };
-
+  
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
