@@ -1,82 +1,96 @@
+import { useState, useEffect } from 'react'; // Adicionado useEffect e useState
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { useApp } from '@/contexts/AppContext'; // Importação do contexto
+import { useApp } from '@/contexts/AppContext'; 
 import { 
   TrendingUp, 
   Users, 
   ShoppingBag, 
   DollarSign,
   Package,
-  Calendar,
-  Target,
   Award,
   AlertTriangle,
-  ArrowUpRight,
-  ArrowDownRight
+  ArrowUpRight
 } from 'lucide-react';
-import { ResponsiveContainer, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, PieChart, Pie, Cell, BarChart, Bar, Legend } from 'recharts';
+import { ResponsiveContainer, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, PieChart, Pie, Cell, Legend } from 'recharts';
 import { ESTAGIO_FUNIL_LABELS, STATUS_PEDIDO_LABELS } from '@/types/api';
 
 const COLORS = ['#eab308', '#3b82f6', '#10b981', '#ef4444', '#8b5cf6'];
 
-export const Dashboard = () => {
-  // CONEXÃO COM DADOS REAIS DO CONTEXTO
-  const { clientes, pedidos, produtos, oportunidades, funcionarios } = useApp();
+// Interface para o dado do gráfico
+interface ChartData {
+  name: string;
+  total: number;
+}
 
-  // --- CÁLCULOS KPI (Indicadores Chave de Desempenho) ---
+export const Dashboard = () => {
+  const { clientes, pedidos, produtos, oportunidades } = useApp();
   
-  // Receita Total (Soma dos pedidos confirmados/pagos/entregues/enviados)
-  // Ignoramos Cancelados e Pendentes para receita realizada, mas depende da regra de negócio.
-  // Aqui somamos tudo que não é cancelado para ter uma visão geral.
+  // Estado para armazenar os dados do gráfico vindos do backend
+  const [chartData, setChartData] = useState<ChartData[]>([]);
+
+  // --- BUSCAR DADOS DO GRÁFICO NO BACKEND ---
+  useEffect(() => {
+    const fetchGrafico = async () => {
+        try {
+            const token = localStorage.getItem('token');
+            // Chama o novo endpoint que criamos no Controller
+            const response = await fetch('http://localhost:8080/dashboard/grafico', {
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                }
+            });
+
+            if (response.ok) {
+                const data = await response.json();
+                
+                // Transforma "2024-11" em "Nov"
+                const formatado = data.map((item: any) => {
+                    if(!item.mes) return { name: '-', total: 0 };
+                    
+                    const [ano, mes] = item.mes.split('-');
+                    const dataObj = new Date(Number(ano), Number(mes) - 1, 1);
+                    
+                    const nomeMes = dataObj.toLocaleString('pt-BR', { month: 'short' });
+                    // Capitaliza (jan -> Jan)
+                    return {
+                        name: nomeMes.charAt(0).toUpperCase() + nomeMes.slice(1),
+                        total: item.valor || 0
+                    };
+                });
+                
+                setChartData(formatado);
+            }
+        } catch (error) {
+            console.error("Erro ao carregar gráfico:", error);
+        }
+    };
+
+    fetchGrafico();
+  }, []); // Executa apenas uma vez ao montar a tela
+
+  // --- CÁLCULOS KPI (Mantidos do Frontend) ---
   const totalVendas = pedidos
     .filter(p => p.status !== 'CANCELADO')
     .reduce((acc, p) => acc + (p.valorTotal || 0), 0);
   
   const totalClientes = clientes.length;
   
-  // Oportunidades "Ativas" (Não Fechadas nem Perdidas)
   const oportunidadesAtivas = oportunidades.filter(
     o => o.estagioFunil !== 'FECHADA' && o.estagioFunil !== 'PERDIDA'
   ).length;
 
-  // Valor em Pipeline (Soma das oportunidades ativas)
   const valorEmPipeline = oportunidades
     .filter(o => o.estagioFunil !== 'FECHADA' && o.estagioFunil !== 'PERDIDA')
     .reduce((acc, o) => acc + (o.valorEstimado || 0), 0);
 
-  // Alertas de Estoque
   const estoqueBaixo = produtos.filter(p => p.quantidadeEstoque > 0 && p.quantidadeEstoque < 5).length;
   const produtosSemEstoque = produtos.filter(p => p.quantidadeEstoque === 0).length;
 
-  // --- PREPARAÇÃO DE DADOS PARA GRÁFICOS ---
-
-  // 1. Gráfico de Vendas por Mês
-  // Agrupa pedidos por mês (ex: "jan", "fev")
-  const vendasPorMes = pedidos
-    .filter(p => p.status !== 'CANCELADO')
-    .reduce((acc: Record<string, number>, pedido) => {
-      // Converte data YYYY-MM-DD para nome do mês
-      const dataObj = new Date(pedido.data);
-      if (!isNaN(dataObj.getTime())) {
-          const mes = dataObj.toLocaleString('pt-BR', { month: 'short' }); // "jan", "fev"
-          // Capitaliza a primeira letra (Jan, Fev)
-          const mesFormatado = mes.charAt(0).toUpperCase() + mes.slice(1);
-          
-          acc[mesFormatado] = (acc[mesFormatado] || 0) + pedido.valorTotal;
-      }
-      return acc;
-    }, {});
-
-  // Transforma o objeto em array para o Recharts
-  // Define uma ordem fixa de meses se quiser, ou usa a ordem que aparecer
-  const chartData = Object.keys(vendasPorMes).map(mes => ({
-    name: mes,
-    total: vendasPorMes[mes]
-  }));
-
-  // Se não houver dados, mostra mock para o gráfico não ficar vazio
+  // Se o gráfico vier vazio (ex: banco novo), mostra placeholder
   const finalChartData = chartData.length > 0 ? chartData : [
-    { name: 'Jan', total: 0 }, { name: 'Fev', total: 0 }, { name: 'Mar', total: 0 }
+    { name: 'Sem dados', total: 0 }
   ];
 
   // 2. Distribuição do Funil (Gráfico de Pizza)
@@ -100,9 +114,8 @@ export const Dashboard = () => {
         <p className="text-muted-foreground">Visão geral em tempo real da Landry Jóias.</p>
       </div>
 
-      {/* --- SEÇÃO DE CARDS KPI --- */}
+      {/* --- CARDS KPI --- */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        {/* Card 1: Receita */}
         <Card className="shadow-sm border-l-4 border-l-yellow-500">
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">Receita Total</CardTitle>
@@ -118,7 +131,6 @@ export const Dashboard = () => {
           </CardContent>
         </Card>
 
-        {/* Card 2: Clientes */}
         <Card className="shadow-sm border-l-4 border-l-blue-500">
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">Base de Clientes</CardTitle>
@@ -132,7 +144,6 @@ export const Dashboard = () => {
           </CardContent>
         </Card>
 
-        {/* Card 3: Pipeline */}
         <Card className="shadow-sm border-l-4 border-l-purple-500">
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">Pipeline de Vendas</CardTitle>
@@ -146,7 +157,6 @@ export const Dashboard = () => {
           </CardContent>
         </Card>
 
-        {/* Card 4: Estoque Alerta */}
         <Card className="shadow-sm border-l-4 border-l-red-500">
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">Alertas de Estoque</CardTitle>
@@ -161,14 +171,14 @@ export const Dashboard = () => {
         </Card>
       </div>
 
-      {/* --- SEÇÃO DE GRÁFICOS --- */}
+      {/* --- GRÁFICOS --- */}
       <div className="grid grid-cols-1 lg:grid-cols-7 gap-6">
         
-        {/* Gráfico Principal (Linha) - Ocupa 4 colunas */}
+        {/* Gráfico de Linha (Agora Dinâmico) */}
         <Card className="lg:col-span-4 shadow-md">
           <CardHeader>
             <CardTitle>Desempenho de Vendas</CardTitle>
-            <CardDescription>Receita mensal acumulada (exclui cancelados)</CardDescription>
+            <CardDescription>Histórico mensal de receita (Confirmados e Pagos)</CardDescription>
           </CardHeader>
           <CardContent>
             <div className="h-[300px] w-full">
@@ -201,7 +211,7 @@ export const Dashboard = () => {
           </CardContent>
         </Card>
 
-        {/* Gráfico Secundário (Pizza) - Ocupa 3 colunas */}
+        {/* Gráfico de Pizza (Funil) */}
         <Card className="lg:col-span-3 shadow-md">
           <CardHeader>
             <CardTitle>Funil de Oportunidades</CardTitle>
@@ -228,7 +238,6 @@ export const Dashboard = () => {
                   <Legend verticalAlign="bottom" height={36} iconType="circle" />
                 </PieChart>
               </ResponsiveContainer>
-              {/* Texto central no Donut */}
               <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 text-center pointer-events-none pb-8">
                 <span className="text-2xl font-bold text-slate-800">{oportunidades.length}</span>
                 <p className="text-xs text-muted-foreground">Total</p>
@@ -241,7 +250,7 @@ export const Dashboard = () => {
       {/* --- LISTAS DE DETALHE --- */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         
-        {/* Lista de Pedidos Recentes */}
+        {/* Pedidos Recentes */}
         <Card className="shadow-md">
           <CardHeader>
             <div className="flex items-center justify-between">
@@ -250,7 +259,7 @@ export const Dashboard = () => {
                   <ShoppingBag className="w-5 h-5 text-accent-gold" />
                   Pedidos Recentes
                 </CardTitle>
-                <CardDescription>Últimas transações registradas</CardDescription>
+                <CardDescription>Últimas transações</CardDescription>
               </div>
               <Badge variant="outline" className="text-xs font-normal">
                 Últimos 5
@@ -262,7 +271,6 @@ export const Dashboard = () => {
               {pedidos.length === 0 ? (
                 <div className="text-center py-6 text-muted-foreground">Nenhum pedido encontrado.</div>
               ) : (
-                // Ordenar por data (mais recente) e pegar top 5
                 [...pedidos]
                   .sort((a, b) => new Date(b.data).getTime() - new Date(a.data).getTime())
                   .slice(0, 5)
@@ -275,7 +283,7 @@ export const Dashboard = () => {
                       <div>
                         <p className="font-medium text-sm text-slate-900">Pedido #{pedido.idPedido}</p>
                         <p className="text-xs text-muted-foreground">
-                          {pedido.data ? new Date(pedido.data).toLocaleDateString('pt-BR') : 'Data n/a'}
+                          {pedido.data ? new Date(pedido.data).toLocaleDateString('pt-BR') : '-'}
                         </p>
                       </div>
                     </div>
@@ -297,7 +305,7 @@ export const Dashboard = () => {
           </CardContent>
         </Card>
 
-        {/* Lista de Produtos em Destaque / Estoque */}
+        {/* Top Produtos */}
         <Card className="shadow-md">
           <CardHeader>
              <div className="flex items-center justify-between">
@@ -306,16 +314,15 @@ export const Dashboard = () => {
                   <Award className="w-5 h-5 text-purple-500" />
                   Top Produtos
                 </CardTitle>
-                <CardDescription>Itens com maior valor agregado</CardDescription>
+                <CardDescription>Itens mais valorizados</CardDescription>
               </div>
             </div>
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
                {produtos.length === 0 ? (
-                <div className="text-center py-6 text-muted-foreground">Nenhum produto cadastrado.</div>
+                <div className="text-center py-6 text-muted-foreground">Nenhum produto.</div>
               ) : (
-                // Ordenar por valor (mais caros primeiro) e pegar top 5
                 [...produtos].sort((a, b) => b.valor - a.valor).slice(0, 5).map((prod) => (
                   <div key={prod.idProduto} className="flex items-center gap-4 p-2 hover:bg-slate-50 rounded-md transition-colors">
                       <div className="h-10 w-10 bg-purple-100 rounded-lg flex items-center justify-center shrink-0">
@@ -325,8 +332,6 @@ export const Dashboard = () => {
                         <p className="text-sm font-medium text-slate-900 truncate">{prod.nome}</p>
                         <div className="flex items-center gap-2 text-xs text-muted-foreground">
                           <span>Estoque: <span className={prod.quantidadeEstoque < 5 ? "text-red-500 font-bold" : ""}>{prod.quantidadeEstoque}</span></span>
-                          <span>•</span>
-                          <span>{prod.material}</span>
                         </div>
                       </div>
                       <div className="font-bold text-sm text-slate-700 whitespace-nowrap">

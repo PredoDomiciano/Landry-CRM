@@ -15,9 +15,11 @@ export type Tamanho =
   | 'MM_8' | 'MM_10' | 'MM_12'
   | 'UNICO' | 'PERSONALIZADO';
 
+// Adicionei GERENCIA aqui também para evitar erros de tipagem
 export type Cargo = 
   | 'SETOR_COMERCIAL' | 'MODELAGEM' | 'INJECAO_DE_CERA' | 'CRAVACAO' | 'POLIMENTO' 
-  | 'ACABAMENTO' | 'FUNDICAO' | 'SOLDAGEM' | 'BANHO' | 'CONTROLE_DE_QUALIDADE' | 'ADMINISTRADOR';
+  | 'ACABAMENTO' | 'FUNDICAO' | 'SOLDAGEM' | 'BANHO' | 'CONTROLE_DE_QUALIDADE' 
+  | 'GERENCIA' | 'ADMINISTRADOR';
 
 // --- INTERFACES (Modelos de Dados) ---
 
@@ -50,7 +52,7 @@ export interface LoginDTO {
 
 export interface LoginResponse {
   token: string;
-  user?: Usuario; // Adicionado user opcional para corrigir erro de login
+  user?: Usuario; 
 }
 
 export interface Cliente {
@@ -64,14 +66,14 @@ export interface Cliente {
   email: string;
   telefone?: string;
   usuario?: Usuario;
-  contato?: Contato; // Relacionamento novo
+  contato?: Contato; 
 }
 
 export interface Funcionario {
   idFuncionario?: number;
   nome: string;
   cpf: string;
-  cargo: Cargo | string; // Aceita string para flexibilidade no frontend
+  cargo: Cargo | string; 
   email: string;
   usuario?: Usuario;
   contato?: Contato;
@@ -90,7 +92,7 @@ export interface Produto {
   idProduto?: number;
   nome: string;
   descricao: string;
-  tipo: number | string; // Flexível para int (backend) ou string (select)
+  tipo: number | string; 
   
   // Novos campos de enum
   tamanho: Tamanho | string; 
@@ -128,10 +130,10 @@ export interface Log {
   idLog?: number;
   titulo: string;
   tipoDeAtividade: number;
-  assunto?: string; // Opcional
+  assunto?: string; 
   descricao: string;
   data: string; 
-  usuario?: { email: string } | Usuario; // Flexível para receber objeto completo ou parcial
+  usuario?: { email: string } | Usuario; 
 }
 
 // --- MAPAS DE TRADUÇÃO (Para mostrar bonito na tela) ---
@@ -159,9 +161,10 @@ export const PEDRA_LABELS: Record<string, string> = {
   'SEM_PEDRA': 'Sem Pedra'
 };
 
+// AQUI ESTÁ A LISTA ATUALIZADA COM ACENTOS E ESPAÇOS
 export const CARGO_LABELS: Record<string, string> = {
-  'SETOR_COMERCIAL': 'Comercial',
-  'MODELAGEM': 'Modelagem 3D',
+  'SETOR_COMERCIAL': 'Setor Comercial',
+  'MODELAGEM': 'Modelagem',
   'INJECAO_DE_CERA': 'Injeção de Cera',
   'CRAVACAO': 'Cravação',
   'POLIMENTO': 'Polimento',
@@ -169,8 +172,9 @@ export const CARGO_LABELS: Record<string, string> = {
   'FUNDICAO': 'Fundição',
   'SOLDAGEM': 'Soldagem',
   'BANHO': 'Banho',
-  'CONTROLE_DE_QUALIDADE': 'Qualidade',
-  'ADMINISTRADOR': 'Administração'
+  'CONTROLE_DE_QUALIDADE': 'Controle de Qualidade',
+  'GERENCIA': 'Gerência',
+  'ADMINISTRADOR': 'Administrador'
 };
 
 export const ESTAGIO_FUNIL_LABELS: Record<string, string> = {

@@ -90,7 +90,6 @@ export const OportunidadesView = () => {
         await deleteOportunidade(opParaDeletar.idOportunidade);
         toast({ title: "Removida", description: "Oportunidade excluída com sucesso." });
     } catch (error: any) {
-        // CORREÇÃO: Mostra a mensagem exata do erro (ex: vinculo com pedido)
         toast({ 
             title: "Não foi possível excluir", 
             description: error.message || "Verifique se essa oportunidade gerou pedidos ou tem registros vinculados.", 
@@ -101,16 +100,24 @@ export const OportunidadesView = () => {
     }
   };
 
+  // --- FUNÇÃO CORRIGIDA PARA USAR A DATA CORRETA ---
   const handleGanharOportunidade = async (op: Oportunidade) => {
     if(!op.idOportunidade) return;
 
     try {
         await updateOportunidadeStatus(op.idOportunidade, 'FECHADA');
 
-        const hojeFormatado = new Date().toISOString().split('T')[0];
+        // LÓGICA DE DATA: Usa a data da oportunidade se existir, senão usa hoje.
+        let dataPedido = new Date().toISOString().split('T')[0]; // Padrão: Hoje
+
+        if (op.dataDeFechamentoEstimada) {
+            // Pega a string da data (ex: "2024-12-25T00:00:00") e corta só a parte da data
+            const dataString = op.dataDeFechamentoEstimada.toString();
+            dataPedido = dataString.split('T')[0];
+        }
 
         const novoPedido: Partial<Pedido> = {
-            data: hojeFormatado,
+            data: dataPedido, // <--- Aqui está a correção
             valorTotal: op.valorEstimado,
             status: 'PENDENTE',
             oportunidade: { idOportunidade: op.idOportunidade } as any 
@@ -118,9 +125,13 @@ export const OportunidadesView = () => {
 
         if(addPedido) {
             await addPedido(novoPedido);
+            
+            // Formata a data para mostrar bonito na mensagem (dd/mm/aaaa)
+            const dataFormatadaMsg = dataPedido.split('-').reverse().join('/');
+            
             toast({ 
                 title: "Parabéns! Venda Fechada!", 
-                description: "Pedido criado na aba Pedidos." 
+                description: `Pedido criado para o dia ${dataFormatadaMsg}.` 
             });
         }
         
@@ -242,6 +253,15 @@ export const OportunidadesView = () => {
                       <span className="text-xs font-semibold text-muted-foreground">Cliente</span>
                       <p className="font-medium truncate">{getNomeCliente(opDetalhes)}</p>
                   </div>
+               </div>
+               {/* Exibindo a Data Estimada nos detalhes para conferência */}
+               <div className="p-3 bg-slate-50 rounded-lg border">
+                  <span className="text-xs font-semibold text-muted-foreground">Previsão de Fechamento</span>
+                  <p className="font-medium">
+                    {opDetalhes.dataDeFechamentoEstimada 
+                        ? new Date(opDetalhes.dataDeFechamentoEstimada).toLocaleDateString('pt-BR') 
+                        : 'Não definida'}
+                  </p>
                </div>
             </div>
           )}

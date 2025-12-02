@@ -59,30 +59,72 @@ export const ClienteForm = ({ open, onOpenChange, onSubmit, initialData }: Clien
     }
   }, [open, initialData]);
 
+  // --- MÁSCARAS DE INPUT ---
+  const handleCpfCnpjChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    let value = e.target.value.replace(/\D/g, ''); // Remove tudo que não é dígito
+    
+    if (value.length > 14) value = value.slice(0, 14); // Limita a 14 dígitos (CNPJ)
+
+    if (value.length <= 11) {
+      // Máscara CPF: 000.000.000-00
+      value = value.replace(/(\d{3})(\d)/, '$1.$2');
+      value = value.replace(/(\d{3})(\d)/, '$1.$2');
+      value = value.replace(/(\d{3})(\d{1,2})$/, '$1-$2');
+    } else {
+      // Máscara CNPJ: 00.000.000/0000-00
+      value = value.replace(/^(\d{2})(\d)/, '$1.$2');
+      value = value.replace(/^(\d{2})\.(\d{3})(\d)/, '$1.$2.$3');
+      value = value.replace(/\.(\d{3})(\d)/, '.$1/$2');
+      value = value.replace(/(\d{4})(\d)/, '$1-$2');
+    }
+    
+    setCpf(value);
+  };
+
+  const handleTelefoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    let value = e.target.value.replace(/\D/g, '');
+    if (value.length > 11) value = value.slice(0, 11);
+
+    // Máscara Telefone: (00) 00000-0000
+    value = value.replace(/^(\d{2})(\d)/g, '($1) $2');
+    value = value.replace(/(\d)(\d{4})$/, '$1-$2');
+    
+    setTelefone(value);
+  };
+
+  const handleCepChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    let value = e.target.value.replace(/\D/g, '');
+    if (value.length > 8) value = value.slice(0, 8);
+    // Máscara CEP: 00000-000
+    value = value.replace(/^(\d{5})(\d)/, '$1-$2');
+    setCep(value);
+  };
+
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setLoading(true);
 
-    // --- MODO DE COMPATIBILIDADE MÁXIMA ---
-    // Enviamos os dados na RAIZ (para backends antigos)
-    // E dentro de CONTATO (para o novo padrão)
+    const limpaFormatacao = (val: string) => val.replace(/\D/g, '');
+
+    const cpfLimpo = limpaFormatacao(cpf);
+    const isCnpj = cpfLimpo.length > 11;
+
     const clientePayload = {
-      // Campos Raiz
       nome: nome,
       nomeDoComercio: nome,
       email: email,
-      telefone: telefone,
-      cpf: cpf,
-      cnpj: cpf,
+      telefone: telefone, // Pode mandar formatado ou limpar aqui também se preferir
       
-      // Endereço na Raiz (Fallback)
+      // Define se vai para o campo CPF ou CNPJ baseado no tamanho
+      cpf: !isCnpj ? cpf : '',
+      cnpj: isCnpj ? cpf : '',
+      
       rua: rua,
       numeroCasa: numeroCasa,
       bairro: bairro,
       cidade: cidade,
       cep: cep,
       
-      // Objeto Contato Aninhado (Padrão Novo)
       contato: {
         email: email,
         telefone: telefone,
@@ -95,12 +137,10 @@ export const ClienteForm = ({ open, onOpenChange, onSubmit, initialData }: Clien
     };
 
     try {
-      console.log("Payload enviado:", clientePayload); // Para debug
       await onSubmit(clientePayload);
       onOpenChange(false);
     } catch (error) {
       console.error(error);
-      // O erro já é tratado no api.ts e mostrado no console
     } finally {
       setLoading(false);
     }
@@ -130,11 +170,23 @@ export const ClienteForm = ({ open, onOpenChange, onSubmit, initialData }: Clien
               </div>
               <div className="space-y-2">
                 <Label htmlFor="telefone">Telefone</Label>
-                <Input id="telefone" value={telefone} onChange={e => setTelefone(e.target.value)} />
+                <Input 
+                  id="telefone" 
+                  value={telefone} 
+                  onChange={handleTelefoneChange} 
+                  placeholder="(00) 00000-0000"
+                  maxLength={15}
+                />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="cpf">CPF / CNPJ</Label>
-                <Input id="cpf" value={cpf} onChange={e => setCpf(e.target.value)} />
+                <Input 
+                  id="cpf" 
+                  value={cpf} 
+                  onChange={handleCpfCnpjChange} 
+                  placeholder="000.000.000-00"
+                  maxLength={18}
+                />
               </div>
             </div>
           </div>
@@ -144,7 +196,13 @@ export const ClienteForm = ({ open, onOpenChange, onSubmit, initialData }: Clien
             <div className="grid grid-cols-6 gap-4">
               <div className="space-y-2 col-span-2">
                 <Label htmlFor="cep">CEP</Label>
-                <Input id="cep" value={cep} onChange={e => setCep(e.target.value)} />
+                <Input 
+                  id="cep" 
+                  value={cep} 
+                  onChange={handleCepChange} 
+                  placeholder="00000-000"
+                  maxLength={9}
+                />
               </div>
               <div className="space-y-2 col-span-4">
                 <Label htmlFor="cidade">Cidade</Label>

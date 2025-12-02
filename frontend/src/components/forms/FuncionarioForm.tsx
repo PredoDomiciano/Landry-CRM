@@ -32,7 +32,7 @@ export const FuncionarioForm = ({ open, onOpenChange, onSubmit, initialData }: F
 
   // States Endereço
   const [rua, setRua] = useState('');
-  const [numeroCasa, setNumeroCasa] = useState(''); // NOVO
+  const [numeroCasa, setNumeroCasa] = useState(''); 
   const [bairro, setBairro] = useState('');
   const [cidade, setCidade] = useState('');
   const [cep, setCep] = useState('');
@@ -47,7 +47,7 @@ export const FuncionarioForm = ({ open, onOpenChange, onSubmit, initialData }: F
 
         const contato = (initialData as any).contato || initialData;
         setRua(contato.rua || '');
-        setNumeroCasa(contato.numeroCasa || ''); // Recupera Número
+        setNumeroCasa(contato.numeroCasa || ''); 
         setBairro(contato.bairro || '');
         setCidade(contato.cidade || '');
         setCep(contato.cep || '');
@@ -65,6 +65,26 @@ export const FuncionarioForm = ({ open, onOpenChange, onSubmit, initialData }: F
     }
   }, [open, initialData]);
 
+  // --- MÁSCARAS ---
+  const handleCpfChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    let value = e.target.value.replace(/\D/g, ''); // Apenas números
+    if (value.length > 11) value = value.slice(0, 11); // Limita a 11 (CPF)
+
+    // Formata 000.000.000-00
+    value = value.replace(/(\d{3})(\d)/, '$1.$2');
+    value = value.replace(/(\d{3})(\d)/, '$1.$2');
+    value = value.replace(/(\d{3})(\d{1,2})$/, '$1-$2');
+    
+    setCpf(value);
+  };
+
+  const handleCepChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    let value = e.target.value.replace(/\D/g, '');
+    if (value.length > 8) value = value.slice(0, 8);
+    value = value.replace(/^(\d{5})(\d)/, '$1-$2');
+    setCep(value);
+  };
+
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setLoading(true);
@@ -72,18 +92,18 @@ export const FuncionarioForm = ({ open, onOpenChange, onSubmit, initialData }: F
     const funcionarioPayload = {
       nome,
       email,
-      cpf,
+      cpf, // Envia formatado ou limpe com cpf.replace(/\D/g, '') se o banco preferir apenas números
       cargo,
       
       rua,
-      numeroCasa, // NOVO
+      numeroCasa, 
       bairro,
       cidade,
       cep,
       
       contato: {
         rua,
-        numeroCasa, // NOVO
+        numeroCasa, 
         bairro,
         cidade,
         cep,
@@ -97,6 +117,7 @@ export const FuncionarioForm = ({ open, onOpenChange, onSubmit, initialData }: F
         title: "Sucesso",
         description: initialData ? "Funcionário atualizado." : "Funcionário adicionado."
       });
+      onOpenChange(false); // Fecha o modal após sucesso
     } catch (error) {
       console.error(error);
       toast({ title: "Erro", description: "Falha ao salvar.", variant: "destructive" });
@@ -134,7 +155,14 @@ export const FuncionarioForm = ({ open, onOpenChange, onSubmit, initialData }: F
 
               <div className="space-y-2">
                 <Label htmlFor="cpf">CPF *</Label>
-                <Input id="cpf" required value={cpf} onChange={(e) => setCpf(e.target.value)} />
+                <Input 
+                    id="cpf" 
+                    required 
+                    value={cpf} 
+                    onChange={handleCpfChange} 
+                    placeholder="000.000.000-00"
+                    maxLength={14}
+                />
               </div>
             </div>
 
@@ -158,7 +186,13 @@ export const FuncionarioForm = ({ open, onOpenChange, onSubmit, initialData }: F
             <div className="grid grid-cols-6 gap-4">
               <div className="space-y-2 col-span-2">
                 <Label htmlFor="cep">CEP</Label>
-                <Input id="cep" value={cep} onChange={(e) => setCep(e.target.value)} placeholder="00000-000" />
+                <Input 
+                    id="cep" 
+                    value={cep} 
+                    onChange={handleCepChange} 
+                    placeholder="00000-000" 
+                    maxLength={9}
+                />
               </div>
               <div className="space-y-2 col-span-4">
                 <Label htmlFor="cidade">Cidade</Label>
