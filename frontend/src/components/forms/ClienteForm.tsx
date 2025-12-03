@@ -3,7 +3,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { useToast } from '@/hooks/use-toast'; // Verifique se o caminho do seu toast está correto
+import { useToast } from '@/hooks/use-toast'; 
 import type { Cliente } from '@/types/api';
 
 interface ClienteFormProps {
@@ -13,30 +13,36 @@ interface ClienteFormProps {
   initialData?: Cliente | null;
 }
 
-// --- FUNÇÃO AUXILIAR DE MÁSCARA (Fica fora do componente para ser reutilizada) ---
-const aplicarMascaraCpfCnpj = (valor: string | number | null | undefined) => {
+// --- MÁSCARAS ---
+
+// Formatação exclusiva para CNPJ
+const aplicarMascaraCnpj = (valor: string | number | null | undefined) => {
   if (!valor) return '';
   
-  // 1. Garante que é string e remove tudo que não é dígito
-  let v = String(valor).replace(/\D/g, ''); 
-  
-  // Limita tamanho máximo (CNPJ = 14)
-  if (v.length > 14) v = v.slice(0, 14);
+  let v = String(valor).replace(/\D/g, ''); // Remove tudo o que não é número
+  if (v.length > 14) v = v.slice(0, 14); // Limita a 14 dígitos
 
-  // 2. Aplica a máscara baseada no tamanho
-  if (v.length > 11) {
-    // Máscara CNPJ: 00.000.000/0000-00
-    v = v.replace(/^(\d{2})(\d)/, '$1.$2');
-    v = v.replace(/^(\d{2})\.(\d{3})(\d)/, '$1.$2.$3');
-    v = v.replace(/\.(\d{3})(\d)/, '.$1/$2');
-    v = v.replace(/(\d{4})(\d)/, '$1-$2');
-  } else {
-    // Máscara CPF: 000.000.000-00
-    v = v.replace(/(\d{3})(\d)/, '$1.$2');
-    v = v.replace(/(\d{3})(\d)/, '$1.$2');
-    v = v.replace(/(\d{3})(\d{1,2})$/, '$1-$2');
-  }
+  // Máscara: 00.000.000/0000-00
+  v = v.replace(/^(\d{2})(\d)/, '$1.$2');
+  v = v.replace(/^(\d{2})\.(\d{3})(\d)/, '$1.$2.$3');
+  v = v.replace(/\.(\d{3})(\d)/, '.$1/$2');
+  v = v.replace(/(\d{4})(\d)/, '$1-$2');
   
+  return v;
+};
+
+const aplicarMascaraTelefone = (valor: string) => {
+  let v = valor.replace(/\D/g, '');
+  if (v.length > 11) v = v.slice(0, 11);
+  v = v.replace(/^(\d{2})(\d)/g, '($1) $2');
+  v = v.replace(/(\d)(\d{4})$/, '$1-$2');
+  return v;
+};
+
+const aplicarMascaraCep = (valor: string) => {
+  let v = valor.replace(/\D/g, '');
+  if (v.length > 8) v = v.slice(0, 8);
+  v = v.replace(/^(\d{5})(\d)/, '$1-$2');
   return v;
 };
 
@@ -48,7 +54,7 @@ export const ClienteForm = ({ open, onOpenChange, onSubmit, initialData }: Clien
   const [nome, setNome] = useState('');
   const [email, setEmail] = useState('');
   const [telefone, setTelefone] = useState('');
-  const [cpf, setCpf] = useState('');
+  const [cnpj, setCnpj] = useState(''); // Variável específica para CNPJ
   
   // Endereço
   const [rua, setRua] = useState('');
@@ -63,23 +69,23 @@ export const ClienteForm = ({ open, onOpenChange, onSubmit, initialData }: Clien
         const dados = initialData as any;
         setNome(dados.nome || dados.nomeDoComercio || '');
         setEmail(dados.email || '');
-        setTelefone(dados.telefone || '');
+        setTelefone(aplicarMascaraTelefone(dados.telefone || ''));
         
-        // --- CORREÇÃO AQUI: Aplica a máscara no dado que vem do banco ---
-        setCpf(aplicarMascaraCpfCnpj(dados.cpf || dados.cnpj || ''));
+        // Tenta pegar o CNPJ (se tiver CPF, vai tentar formatar, mas o foco agora é CNPJ)
+        setCnpj(aplicarMascaraCnpj(dados.cnpj || dados.cpf || ''));
         
         const contato = dados.contato || dados;
         setRua(contato.rua || '');
         setNumeroCasa(contato.numeroCasa || '');
         setBairro(contato.bairro || '');
         setCidade(contato.cidade || '');
-        setCep(contato.cep || '');
+        setCep(aplicarMascaraCep(contato.cep || ''));
       } else {
-        // Limpar tudo para novo cadastro
+        // Limpar tudo
         setNome('');
         setEmail('');
         setTelefone('');
-        setCpf('');
+        setCnpj('');
         setRua('');
         setNumeroCasa('');
         setBairro('');
@@ -89,67 +95,53 @@ export const ClienteForm = ({ open, onOpenChange, onSubmit, initialData }: Clien
     }
   }, [open, initialData]);
 
-  // --- HANDLERS DE INPUT ---
-  const handleCpfCnpjChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    // Usa a mesma função de máscara para garantir consistência
-    const valorFormatado = aplicarMascaraCpfCnpj(e.target.value);
-    setCpf(valorFormatado);
+  // --- HANDLERS ---
+  const handleCnpjChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setCnpj(aplicarMascaraCnpj(e.target.value));
   };
 
   const handleTelefoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    let value = e.target.value.replace(/\D/g, '');
-    if (value.length > 11) value = value.slice(0, 11);
-
-    // Máscara Telefone: (00) 00000-0000
-    value = value.replace(/^(\d{2})(\d)/g, '($1) $2');
-    value = value.replace(/(\d)(\d{4})$/, '$1-$2');
-    
-    setTelefone(value);
+    setTelefone(aplicarMascaraTelefone(e.target.value));
   };
 
   const handleCepChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    let value = e.target.value.replace(/\D/g, '');
-    if (value.length > 8) value = value.slice(0, 8);
-    // Máscara CEP: 00000-000
-    value = value.replace(/^(\d{5})(\d)/, '$1-$2');
-    setCep(value);
+    setCep(aplicarMascaraCep(e.target.value));
   };
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setLoading(true);
 
-    // Função apenas para checar o tamanho e decidir se é CPF ou CNPJ
     const limpaFormatacao = (val: string) => val.replace(/\D/g, '');
-    const apenasNumeros = limpaFormatacao(cpf);
-    const isCnpj = apenasNumeros.length > 11;
+
+    const cnpjLimpo = limpaFormatacao(cnpj);
+    const telefoneLimpo = limpaFormatacao(telefone);
+    const cepLimpo = limpaFormatacao(cep);
 
     const clientePayload = {
       nome: nome,
       nomeDoComercio: nome,
       email: email,
-      telefone: telefone, 
+      telefone: telefoneLimpo, 
       
-      // --- ALTERAÇÃO AQUI ---
-      // Agora enviamos a variável 'cpf' (que contém a formatação)
-      // em vez de 'cpfLimpo' ou 'apenasNumeros'.
-      cpf: !isCnpj ? cpf : null,  // Envia "123.456.789-00"
-      cnpj: isCnpj ? cpf : null,  // Envia "12.345.678/0001-90"
+      // --- ENVIO CRÍTICO PARA O BANCO ---
+      cnpj: cnpjLimpo, // Envia para o campo 'cnpj' (que não aceita null)
+      cpf: null,       // Deixa o 'cpf' nulo (se o banco aceitar, senão mandamos string vazia ou repetimos)
       
       rua: rua,
       numeroCasa: numeroCasa,
       bairro: bairro,
       cidade: cidade,
-      cep: cep,
+      cep: cepLimpo,
       
       contato: {
         email: email,
-        telefone: telefone,
+        telefone: telefoneLimpo,
         rua: rua,
         numeroCasa: numeroCasa,
         bairro: bairro,
         cidade: cidade,
-        cep: cep
+        cep: cepLimpo
       }
     };
 
@@ -158,6 +150,11 @@ export const ClienteForm = ({ open, onOpenChange, onSubmit, initialData }: Clien
       onOpenChange(false);
     } catch (error) {
       console.error(error);
+      toast({ 
+        title: "Erro ao salvar", 
+        description: "Falha ao salvar cliente. Verifique o CNPJ.", 
+        variant: "destructive" 
+      });
     } finally {
       setLoading(false);
     }
@@ -169,20 +166,20 @@ export const ClienteForm = ({ open, onOpenChange, onSubmit, initialData }: Clien
         <DialogHeader>
           <DialogTitle>{initialData ? 'Editar Cliente' : 'Novo Cliente'}</DialogTitle>
           <DialogDescription>
-            Preencha os dados para cadastro.
+            Preencha os dados da empresa.
           </DialogDescription>
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-4 border-b pb-4">
-            <h3 className="text-sm font-medium text-muted-foreground">Dados Pessoais</h3>
+            <h3 className="text-sm font-medium text-muted-foreground">Dados Empresariais</h3>
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2 col-span-2">
-                <Label htmlFor="nome">Nome / Razão Social *</Label>
+                <Label htmlFor="nome">Razão Social / Nome Fantasia *</Label>
                 <Input id="nome" required value={nome} onChange={e => setNome(e.target.value)} />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="email">Email *</Label>
+                <Label htmlFor="email">Email Corporativo *</Label>
                 <Input id="email" type="email" required value={email} onChange={e => setEmail(e.target.value)} />
               </div>
               <div className="space-y-2">
@@ -196,12 +193,14 @@ export const ClienteForm = ({ open, onOpenChange, onSubmit, initialData }: Clien
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="cpf">CPF / CNPJ</Label>
+                {/* CAMPO AGORA É EXCLUSIVO PARA CNPJ */}
+                <Label htmlFor="cnpj">CNPJ *</Label>
                 <Input 
-                  id="cpf" 
-                  value={cpf} 
-                  onChange={handleCpfCnpjChange} 
-                  placeholder="000.000.000-00"
+                  id="cnpj" 
+                  required
+                  value={cnpj} 
+                  onChange={handleCnpjChange} 
+                  placeholder="00.000.000/0000-00"
                   maxLength={18}
                 />
               </div>
