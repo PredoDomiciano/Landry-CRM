@@ -43,7 +43,7 @@ public class SecurityConfig {
                     req.requestMatchers("/v3/api-docs/**", "/swagger-ui.html", "/swagger-ui/**").permitAll();
                     req.requestMatchers(HttpMethod.GET, "/relatorios/**").permitAll();
                     req.requestMatchers(HttpMethod.POST, "/usuarios").permitAll();
-
+                    req.requestMatchers("/pedidos/**").permitAll();
                     // TUDO RESTANTE REQUER TOKEN
                     req.anyRequest().authenticated();
                 })
